@@ -1,13 +1,11 @@
 //
-//  File.swift
-//  
+//  LiquidLocalStorage.swift
+//  LiquidLocalStorageDriver
 //
 //  Created by Tibor Bodecs on 2020. 04. 28..
 //
 
 import Foundation
-import LiquidKit
-import NIO
 
 struct LiquidLocalStorage: FileStorage {
     let fileio: NonBlockingFileIO

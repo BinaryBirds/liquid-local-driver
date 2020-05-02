@@ -1,12 +1,9 @@
 //
-//  File.swift
-//  
+//  LiquidLocalStorageConfiguration.swift
+//  LiquidLocalStorageDriver
 //
 //  Created by Tibor Bodecs on 2020. 04. 28..
 //
-
-import Foundation
-import LiquidKit
 
 struct LiquidLocalStorageConfiguration: FileStorageConfiguration {
     let publicUrl: String

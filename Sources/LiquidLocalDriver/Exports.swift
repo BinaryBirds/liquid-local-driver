@@ -1,12 +1,9 @@
 //
-//  File.swift
-//  
+//  Exports.swift
+//  LiquidLocalStorageDriver
 //
 //  Created by Tibor Bodecs on 2020. 04. 28..
 //
 
 @_exported import LiquidKit
-
-public extension FileStorageID {
-    static var local: FileStorageID { .init(string: "local") }
-}
+@_exported import NIO
