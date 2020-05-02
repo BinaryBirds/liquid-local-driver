@@ -8,7 +8,6 @@ let package = Package(
     ],
     products: [
         .library(name: "LiquidLocalDriver", targets: ["LiquidLocalDriver"]),
-        .library(name: "LiquidLocalDriverDynamic", type: .dynamic, targets: ["LiquidLocalDriver"]),
     ],
     dependencies: [
         .package(url: "https://github.com/binarybirds/liquid-kit.git", from: "1.0.0"),
