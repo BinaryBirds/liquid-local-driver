@@ -32,25 +32,25 @@ struct LiquidLocalStorage: FileStorage {
             let location = fileUrl.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: location,
                                                     withIntermediateDirectories: true,
-                                                    attributes: [.posixPermissions: 0o644])
+                                                    attributes: [.posixPermissions: 0o744])
 
             var buffer = ByteBufferAllocator().buffer(capacity: data.count)
             buffer.writeBytes(data)
             return self.fileio.openFile(path: fileUrl.path,
                                         mode: .write,
-                                        flags: .allowFileCreation(posixMode: 0o644),
+                                        flags: .allowFileCreation(posixMode: 0o744),
                                         eventLoop: self.context.eventLoop)
-                //            .flatMapErrorThrowing { error in
-                //                throw "unable to open file \(path)"
-                //            }
-                .flatMap { handle in
-                    return self.fileio.write(fileHandle: handle,
-                                             buffer: buffer,
-                                             eventLoop: self.context.eventLoop)
-                        .flatMapThrowing { _ in
-                            try handle.close()
-                            return self.resolve(key: key)
-                    }
+//            .flatMapErrorThrowing { error in
+//                throw "unable to open file \(path)"
+//            }
+            .flatMap { handle in
+                return self.fileio.write(fileHandle: handle,
+                                         buffer: buffer,
+                                         eventLoop: self.context.eventLoop)
+                    .flatMapThrowing { _ in
+                        try handle.close()
+                        return self.resolve(key: key)
+                }
             }
         }
         catch {
