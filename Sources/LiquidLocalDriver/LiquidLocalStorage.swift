@@ -91,7 +91,9 @@ struct LiquidLocalStorage: FileStorage {
     func delete(key: String) -> EventLoopFuture<Void> {
         do {
             let fileUrl = basePath.appendingPathComponent(key)
-            try FileManager.default.removeItem(atPath: fileUrl.path)
+            if FileManager.default.fileExists(atPath: fileUrl.path) {
+                try FileManager.default.removeItem(atPath: fileUrl.path)
+            }
             return context.eventLoop.makeSucceededFuture(())
         }
         catch {
