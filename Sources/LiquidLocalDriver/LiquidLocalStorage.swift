@@ -30,9 +30,6 @@ struct LiquidLocalStorage: FileStorage {
         let url = URL(string: configuration.publicUrl)!
         return url.appendingPathComponent(configuration.workDirectory)
     }
-    
-    /// default permissions
-    
 
     /// creates the entire directory structure with the necessary posix permissions
     private func createDir(at url: URL) throws {
@@ -74,13 +71,17 @@ struct LiquidLocalStorage: FileStorage {
             return context.eventLoop.makeFailedFuture(error)
         }
     }
-    
+
     func list(key: String?) -> EventLoopFuture<[String]> {
         let dirUrl = basePath.appendingPathComponent(key ?? "")
-
         do {
-            let files = try FileManager.default.contentsOfDirectory(atPath: dirUrl.path)
-            return context.eventLoop.makeSucceededFuture(files)
+            var isDir: ObjCBool = false
+            if FileManager.default.fileExists(atPath: dirUrl.path, isDirectory: &isDir), isDir.boolValue {
+                let files = try FileManager.default.contentsOfDirectory(atPath: dirUrl.path)
+                return context.eventLoop.makeSucceededFuture(files)
+            }
+            /// it was a file... files don't have children, so we return an empty array.
+            return context.eventLoop.makeSucceededFuture([])
         }
         catch {
             return context.eventLoop.makeFailedFuture(error)
