@@ -8,64 +8,93 @@
 import Foundation
 
 struct LiquidLocalStorage: FileStorage {
+    
     let fileio: NonBlockingFileIO
     let configuration: LiquidLocalStorageConfiguration
     let context: FileStorageContext
-
-    func resolve(key: String) -> String {
-        self.baseUrl.appendingPathComponent(key).absoluteString
-    }
+    let posixMode: UInt16
     
+    init(fileio: NonBlockingFileIO, configuration: LiquidLocalStorageConfiguration, context: FileStorageContext, posixMode: UInt16 = 0o744) {
+        self.fileio = fileio
+        self.configuration = configuration
+        self.context = context
+        self.posixMode = posixMode
+    }
+
     private var basePath: URL {
-        let url = URL(fileURLWithPath: self.configuration.publicPath)
-        return url.appendingPathComponent(self.configuration.workDirectory)
+        let url = URL(fileURLWithPath: configuration.publicPath)
+        return url.appendingPathComponent(configuration.workDirectory)
     }
     
     private var baseUrl: URL {
-        let url = URL(string: self.configuration.publicUrl)!
-        return url.appendingPathComponent(self.configuration.workDirectory)
+        let url = URL(string: configuration.publicUrl)!
+        return url.appendingPathComponent(configuration.workDirectory)
     }
+    
+    /// default permissions
+    
+
+    /// creates the entire directory structure with the necessary posix permissions
+    private func createDir(at url: URL) throws {
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: posixMode])
+    }
+
+    // MARK: - api
+
+    func resolve(key: String) -> String { baseUrl.appendingPathComponent(key).absoluteString }
 
     func upload(key: String, data: Data) -> EventLoopFuture<String> {
         do {
-            let fileUrl = self.basePath.appendingPathComponent(key)
+            let fileUrl = basePath.appendingPathComponent(key)
             let location = fileUrl.deletingLastPathComponent()
-            try FileManager.default.createDirectory(at: location,
-                                                    withIntermediateDirectories: true,
-                                                    attributes: [.posixPermissions: 0o744])
+            try createDir(at: location)
 
             var buffer = ByteBufferAllocator().buffer(capacity: data.count)
             buffer.writeBytes(data)
-            return self.fileio.openFile(path: fileUrl.path,
-                                        mode: .write,
-                                        flags: .allowFileCreation(posixMode: 0o744),
-                                        eventLoop: self.context.eventLoop)
-//            .flatMapErrorThrowing { error in
-//                throw "unable to open file \(path)"
-//            }
+            return fileio.openFile(path: fileUrl.path, mode: .write, flags: .allowFileCreation(posixMode: posixMode), eventLoop: context.eventLoop)
             .flatMap { handle in
-                return self.fileio.write(fileHandle: handle,
-                                         buffer: buffer,
-                                         eventLoop: self.context.eventLoop)
-                    .flatMapThrowing { _ in
-                        try handle.close()
-                        return self.resolve(key: key)
+                fileio.write(fileHandle: handle, buffer: buffer, eventLoop: context.eventLoop).flatMapThrowing { _ in
+                    try handle.close()
+                    return resolve(key: key)
                 }
             }
         }
         catch {
-            return self.context.eventLoop.makeFailedFuture(error)
+            return context.eventLoop.makeFailedFuture(error)
+        }
+    }
+
+    func createDirectory(key: String) -> EventLoopFuture<Void> {
+        do {
+            let dirUrl = basePath.appendingPathComponent(key)
+            try createDir(at: dirUrl)
+            return context.eventLoop.makeSucceededFuture(())
+        }
+        catch {
+            return context.eventLoop.makeFailedFuture(error)
+        }
+    }
+    
+    func list(key: String?) -> EventLoopFuture<[String]> {
+        let dirUrl = basePath.appendingPathComponent(key ?? "")
+
+        do {
+            let files = try FileManager.default.contentsOfDirectory(atPath: dirUrl.path)
+            return context.eventLoop.makeSucceededFuture(files)
+        }
+        catch {
+            return context.eventLoop.makeFailedFuture(error)
         }
     }
 
     func delete(key: String) -> EventLoopFuture<Void> {
         do {
-            let fileUrl = self.basePath.appendingPathComponent(key)
+            let fileUrl = basePath.appendingPathComponent(key)
             try FileManager.default.removeItem(atPath: fileUrl.path)
-            return self.context.eventLoop.makeSucceededFuture(())
+            return context.eventLoop.makeSucceededFuture(())
         }
         catch {
-            return self.context.eventLoop.makeFailedFuture(error)
+            return context.eventLoop.makeFailedFuture(error)
         }
     }
 }

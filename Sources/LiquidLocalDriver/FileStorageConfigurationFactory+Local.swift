@@ -7,11 +7,7 @@
 
 public extension FileStorageConfigurationFactory {
 
-    static func local(publicUrl: String,
-                      publicPath: String,
-                      workDirectory: String) -> FileStorageConfigurationFactory {
-        .init { LiquidLocalStorageConfiguration(publicUrl: publicUrl,
-                                                publicPath: publicPath,
-                                                workDirectory: workDirectory) }
+    static func local(publicUrl: String, publicPath: String, workDirectory: String) -> FileStorageConfigurationFactory {
+        .init { LiquidLocalStorageConfiguration(publicUrl: publicUrl, publicPath: publicPath, workDirectory: workDirectory) }
     }
 }

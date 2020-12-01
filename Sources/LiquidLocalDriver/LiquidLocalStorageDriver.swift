@@ -10,9 +10,7 @@ struct LiquidLocalStorageDriver: FileStorageDriver {
     let configuration: LiquidLocalStorageConfiguration
 
     func makeStorage(with context: FileStorageContext) -> FileStorage {
-        LiquidLocalStorage(fileio: self.fileio,
-                           configuration: self.configuration,
-                           context: context)
+        LiquidLocalStorage(fileio: fileio, configuration: configuration, context: context)
     }
     
     func shutdown() {
