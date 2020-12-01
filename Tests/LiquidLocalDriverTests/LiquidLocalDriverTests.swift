@@ -49,4 +49,17 @@ final class LiquidLocalDriverTests: XCTestCase {
         XCTAssertEqual(res, ["dir03", "test-01.txt"])
     }
     
+    func testExists() throws {
+        let fs = try createTestStorage()
+
+        let key1 = "non-existing-thing"
+        let exists1 = try fs.exists(key: key1).wait()
+        XCTAssertFalse(exists1)
+        
+        let key2 = "my/dir"
+        _ = try fs.createDirectory(key: key2).wait()
+        let exists2 = try fs.exists(key: key2).wait()
+        XCTAssertTrue(exists2)
+    }
+    
 }

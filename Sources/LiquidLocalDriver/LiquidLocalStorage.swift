@@ -97,6 +97,12 @@ struct LiquidLocalStorage: FileStorage {
             return context.eventLoop.makeFailedFuture(error)
         }
     }
+
+    func exists(key: String) -> EventLoopFuture<Bool> {
+        let fileUrl = basePath.appendingPathComponent(key)
+        let exists = FileManager.default.fileExists(atPath: fileUrl.path)
+        return context.eventLoop.makeSucceededFuture(exists)
+    }
 }
 
 
