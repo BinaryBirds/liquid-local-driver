@@ -12,9 +12,9 @@ struct LiquidLocalStorage: FileStorage {
     let fileio: NonBlockingFileIO
     let configuration: LiquidLocalStorageConfiguration
     let context: FileStorageContext
-    let posixMode: UInt16
+    let posixMode: mode_t
     
-    init(fileio: NonBlockingFileIO, configuration: LiquidLocalStorageConfiguration, context: FileStorageContext, posixMode: UInt16 = 0o744) {
+    init(fileio: NonBlockingFileIO, configuration: LiquidLocalStorageConfiguration, context: FileStorageContext, posixMode: mode_t = 0o744) {
         self.fileio = fileio
         self.configuration = configuration
         self.context = context
