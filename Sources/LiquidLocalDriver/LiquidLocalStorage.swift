@@ -98,6 +98,8 @@ struct LiquidLocalStorage: FileStorage {
         .flatMapThrowing {
             let sourceUrl = basePath.appendingPathComponent(source)
             let destinationUrl = basePath.appendingPathComponent(destination)
+            let location = destinationUrl.deletingLastPathComponent()
+            try createDir(at: location)
             try FileManager.default.copyItem(at: sourceUrl, to: destinationUrl)
             return resolve(key: destination)
         }
