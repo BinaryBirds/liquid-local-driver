@@ -74,4 +74,42 @@ final class LiquidLocalDriverTests: XCTestCase {
         XCTAssertEqual(res, [])
     }
     
+    func testCopy() throws {
+        let fs = try createTestStorage()
+        let key = "test-02.txt"
+        let data = Data("file storage test 02".utf8)
+        let res = try fs.upload(key: key, data: data).wait()
+        XCTAssertEqual(res, "http://localhost/assets/test-02.txt")
+        
+        let dest = "test-03.txt"
+        _ = try fs.delete(key: dest).wait()
+        let res2 = try fs.copy(key: key, to: dest).wait()
+        
+        XCTAssertEqual(res2, "http://localhost/assets/test-03.txt")
+        
+        let res3 = try fs.exists(key: key).wait()
+        XCTAssertTrue(res3)
+        let res4 = try fs.exists(key: dest).wait()
+        XCTAssertTrue(res4)
+    }
+    
+    func testMove() throws {
+        let fs = try createTestStorage()
+        let key = "test-04.txt"
+        let data = Data("file storage test 04".utf8)
+        let res = try fs.upload(key: key, data: data).wait()
+        XCTAssertEqual(res, "http://localhost/assets/test-04.txt")
+        
+        let dest = "test-05.txt"
+        _ = try fs.delete(key: dest).wait()
+        let res2 = try fs.move(key: key, to: dest).wait()
+        
+        XCTAssertEqual(res2, "http://localhost/assets/test-05.txt")
+        
+        let res3 = try fs.exists(key: key).wait()
+        XCTAssertFalse(res3)
+        let res4 = try fs.exists(key: dest).wait()
+        XCTAssertTrue(res4)
+    }
+    
 }

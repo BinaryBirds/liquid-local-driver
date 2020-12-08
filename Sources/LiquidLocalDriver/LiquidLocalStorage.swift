@@ -8,7 +8,7 @@
 import Foundation
 
 struct LiquidLocalStorage: FileStorage {
-    
+
     let fileio: NonBlockingFileIO
     let configuration: LiquidLocalStorageConfiguration
     let context: FileStorageContext
@@ -87,17 +87,38 @@ struct LiquidLocalStorage: FileStorage {
             return context.eventLoop.makeFailedFuture(error)
         }
     }
+    
+    func copy(key source: String, to destination: String) -> EventLoopFuture<String> {
+        exists(key: source).flatMapThrowing { exists in
+            guard exists else {
+                throw LiquidError.keyNotExists
+            }
+            let sourceUrl = basePath.appendingPathComponent(source)
+            let destinationUrl = basePath.appendingPathComponent(destination)
+            try FileManager.default.copyItem(at: sourceUrl, to: destinationUrl)
+            return resolve(key: destination)
+        }
+    }
+
+    func move(key source: String, to destination: String) -> EventLoopFuture<String> {
+        exists(key: source).flatMapThrowing { exists in
+            guard exists else {
+                throw LiquidError.keyNotExists
+            }
+            let sourceUrl = basePath.appendingPathComponent(source)
+            let destinationUrl = basePath.appendingPathComponent(destination)
+            try FileManager.default.moveItem(at: sourceUrl, to: destinationUrl)
+            return resolve(key: destination)
+        }
+    }
 
     func delete(key: String) -> EventLoopFuture<Void> {
-        do {
-            let fileUrl = basePath.appendingPathComponent(key)
-            if FileManager.default.fileExists(atPath: fileUrl.path) {
-                try FileManager.default.removeItem(atPath: fileUrl.path)
+        exists(key: key).flatMapThrowing { exists in
+            guard exists else {
+                return
             }
-            return context.eventLoop.makeSucceededFuture(())
-        }
-        catch {
-            return context.eventLoop.makeFailedFuture(error)
+            let fileUrl = basePath.appendingPathComponent(key)
+            try FileManager.default.removeItem(atPath: fileUrl.path)
         }
     }
 
