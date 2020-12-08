@@ -82,7 +82,6 @@ final class LiquidLocalDriverTests: XCTestCase {
         XCTAssertEqual(res, "http://localhost/assets/test-02.txt")
         
         let dest = "test-03.txt"
-        _ = try fs.delete(key: dest).wait()
         let res2 = try fs.copy(key: key, to: dest).wait()
         
         XCTAssertEqual(res2, "http://localhost/assets/test-03.txt")
@@ -101,7 +100,6 @@ final class LiquidLocalDriverTests: XCTestCase {
         XCTAssertEqual(res, "http://localhost/assets/test-04.txt")
         
         let dest = "test-05.txt"
-        _ = try fs.delete(key: dest).wait()
         let res2 = try fs.move(key: key, to: dest).wait()
         
         XCTAssertEqual(res2, "http://localhost/assets/test-05.txt")

@@ -89,10 +89,13 @@ struct LiquidLocalStorage: FileStorage {
     }
     
     func copy(key source: String, to destination: String) -> EventLoopFuture<String> {
-        exists(key: source).flatMapThrowing { exists in
+        exists(key: source).flatMap { exists in
             guard exists else {
-                throw LiquidError.keyNotExists
+                return context.eventLoop.makeFailedFuture(LiquidError.keyNotExists)
             }
+            return delete(key: destination)
+        }
+        .flatMapThrowing {
             let sourceUrl = basePath.appendingPathComponent(source)
             let destinationUrl = basePath.appendingPathComponent(destination)
             try FileManager.default.copyItem(at: sourceUrl, to: destinationUrl)
@@ -101,15 +104,7 @@ struct LiquidLocalStorage: FileStorage {
     }
 
     func move(key source: String, to destination: String) -> EventLoopFuture<String> {
-        exists(key: source).flatMapThrowing { exists in
-            guard exists else {
-                throw LiquidError.keyNotExists
-            }
-            let sourceUrl = basePath.appendingPathComponent(source)
-            let destinationUrl = basePath.appendingPathComponent(destination)
-            try FileManager.default.moveItem(at: sourceUrl, to: destinationUrl)
-            return resolve(key: destination)
-        }
+        copy(key: source, to: destination).flatMap { url in delete(key: source).map { url } }
     }
 
     func delete(key: String) -> EventLoopFuture<Void> {
