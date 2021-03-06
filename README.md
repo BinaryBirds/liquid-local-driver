@@ -2,26 +2,21 @@
 
 A local driver implementation for the [LiquidKit](https://github.com/BinaryBirds/liquid-kit) file storage solution.
 
-The local driver uses a local directory on the server and the FileManager object from the Foundation framework to store files.
-
-If you are planning to setup a distributed system with multiple application servers, please consider using the [AWS S3](https://github.com/BinaryBirds/liquid-aws-s3-driver) driver instead. 
-
-LiquidKit and the local driver is also compatible with Vapor 4 through the [Liquid](https://github.com/BinaryBirds/liquid) repository, that contains Vapor specific extensions.
+The local driver uses a local directory on the server and the FileManager object from the Foundation framework to store files. If you are planning to setup a distributed system with multiple application servers, please consider using the [AWS S3](https://github.com/BinaryBirds/liquid-aws-s3-driver) driver instead. LiquidKit and the local driver is also compatible with Vapor 4 through the [Liquid](https://github.com/BinaryBirds/liquid) repository, that contains Vapor specific extensions.
 
 
 ## Key resolution for local objects
 
 The local driver resolves keys using a public base URL component the name of the working directory and the key itself.
 
-url = [public base URL] + [working directory name] + [key]
+- url = [public base URL] + [working directory name] + [key]
 
 e.g. 
 
-publicUrl = "http://localhost/"
-workDirectory = "assets"
-key = "test.txt"
-
-resolvedUrl = "http://localhost/assets/test.txt"
+- publicUrl = "http://localhost/"
+- workDirectory = "assets"
+- key = "test.txt"
+- resolvedUrl = "http://localhost/assets/test.txt"
 
 
 ## Usage with SwiftNIO
