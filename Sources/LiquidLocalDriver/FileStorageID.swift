@@ -6,5 +6,7 @@
 //
 
 public extension FileStorageID {
+    
+    /// local file storage identifier
     static var local: FileStorageID { .init(string: "local") }
 }

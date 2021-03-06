@@ -12,6 +12,8 @@ struct LiquidLocalStorage: FileStorage {
     let fileio: NonBlockingFileIO
     let configuration: LiquidLocalStorageConfiguration
     let context: FileStorageContext
+    
+    /// default posix mode used to create files and directories
     let posixMode: mode_t
     
     init(fileio: NonBlockingFileIO, configuration: LiquidLocalStorageConfiguration, context: FileStorageContext, posixMode: mode_t = 0o744) {
@@ -20,15 +22,15 @@ struct LiquidLocalStorage: FileStorage {
         self.context = context
         self.posixMode = posixMode
     }
+    
+    // MARK: - private
 
     private var basePath: URL {
-        let url = URL(fileURLWithPath: configuration.publicPath)
-        return url.appendingPathComponent(configuration.workDirectory)
+        URL(fileURLWithPath: configuration.publicPath).appendingPathComponent(configuration.workDirectory)
     }
     
     private var baseUrl: URL {
-        let url = URL(string: configuration.publicUrl)!
-        return url.appendingPathComponent(configuration.workDirectory)
+        URL(string: configuration.publicUrl)!.appendingPathComponent(configuration.workDirectory)
     }
 
     /// creates the entire directory structure with the necessary posix permissions
@@ -38,7 +40,9 @@ struct LiquidLocalStorage: FileStorage {
 
     // MARK: - api
 
-    func resolve(key: String) -> String { baseUrl.appendingPathComponent(key).absoluteString }
+    func resolve(key: String) -> String {
+        baseUrl.appendingPathComponent(key).absoluteString
+    }
 
     func upload(key: String, data: Data) -> EventLoopFuture<String> {
         do {

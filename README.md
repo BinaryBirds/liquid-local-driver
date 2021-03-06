@@ -1,11 +1,32 @@
 # LiquidLocalDriver
 
-Local driver for Liquid file storage.
+A local driver implementation for the [LiquidKit](https://github.com/BinaryBirds/liquid-kit) file storage solution.
+
+The local driver uses a local directory on the server and the FileManager object from the Foundation framework to store files.
+
+If you are planning to setup a distributed system with multiple application servers, please consider using the [AWS S3](https://github.com/BinaryBirds/liquid-aws-s3-driver) driver instead. 
+
+LiquidKit and the local driver is also compatible with Vapor 4 through the [Liquid](https://github.com/BinaryBirds/liquid) repository, that contains Vapor specific extensions.
 
 
-## Usage example
+## Key resolution for local objects
 
-Add dependencies:
+The local driver resolves keys using a public base URL component the name of the working directory and the key itself.
+
+url = [public base URL] + [working directory name] + [key]
+
+e.g. 
+
+publicUrl = "http://localhost/"
+workDirectory = "assets"
+key = "test.txt"
+
+resolvedUrl = "http://localhost/assets/test.txt"
+
+
+## Usage with SwiftNIO
+
+Add the required dependencies using SPM:
 
 ```swift
 // swift-tools-version:5.3
@@ -17,14 +38,11 @@ let package = Package(
        .macOS(.v10_15)
     ],
     dependencies: [
-        // 💧 A server-side Swift web framework.
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.30.0"),
-        .package(url: "https://github.com/binarybirds/liquid.git", from: "1.1.0"),
-        .package(url: "https://github.com/binarybirds/liquid-local-driver.git", from: "1.1.0"),
+        .package(url: "https://github.com/binarybirds/liquid", from: "1.2.0"),
+        .package(url: "https://github.com/binarybirds/liquid-local-driver", from: "1.2.0"),
     ],
     targets: [
         .target(name: "App", dependencies: [
-            .product(name: "Vapor", package: "vapor"),
             .product(name: "Liquid", package: "liquid"),
             .product(name: "LiquidLocalDriver", package: "liquid-local-driver"),
         ]),
@@ -32,44 +50,32 @@ let package = Package(
 )
 ```
 
-Driver configuration
+A basic usage example with SwiftNIO:
 
-```swift
-import Liquid
-import LiquidLocalDriver
+```
+/// setup thread pool
+let elg = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+let pool = NIOThreadPool(numberOfThreads: 1)
+pool.start()
 
-public func configure(_ app: Application) throws {
+/// create fs  
+let fileio = NonBlockingFileIO(threadPool: pool)
+let storages = FileStorages(fileio: fileio)
+storages.use(.local(publicUrl: "http://localhost/",
+                    publicPath: "/var/www/localhost/public",
+                    workDirectory: "assets"), as: .local)
+let fs = storages.fileStorage(.local, logger: .init(label: "[test-logger]"), on: elg.next())!
 
-    app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
+/// test file upload
+let key = "test.txt"
+let data = Data("file storage test".utf8)
+let res = try fs.upload(key: key, data: data).wait()
 
-    // using the local driver
-    app.fileStorages.use(.local(publicUrl: "http://localhost:8080/",
-                                publicPath: app.directory.publicDirectory,
-                                workDirectory: "assets"), as: .local)
-}
+/// http://localhost/assets/test.txt
+let url = req.fs.resolve(key: key)
+
+/// delete key
+try req.fs.delete(key: key).wait()
+
 ```
 
-File upload example:
-
-```swift
-
-func testUpload(req: Request) -> EventLoopFuture<String> {
-    let data: Data! = //...
-    let key = "path/to/my/file.txt"
-    return req.fs.upload(key: key, data: data)
-    // returns the full public url of the uploaded image
-}
-
-// resolve public url based on a key
-// func resolve(key: String) -> String
-req.fs.resolve(key: myImageKey)
-
-// delete file based on a key
-// func delete(key: String) -> EventLoopFuture<Void>
-req.fs.delete(key: myImageKey)
-```
-
-
-## License
-
-[WTFPL](LICENSE) - Do what the fuck you want to.

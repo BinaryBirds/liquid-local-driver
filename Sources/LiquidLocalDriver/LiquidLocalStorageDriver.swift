@@ -6,6 +6,7 @@
 //
 
 struct LiquidLocalStorageDriver: FileStorageDriver {
+
     let fileio: NonBlockingFileIO
     let configuration: LiquidLocalStorageConfiguration
 
@@ -13,7 +14,5 @@ struct LiquidLocalStorageDriver: FileStorageDriver {
         LiquidLocalStorage(fileio: fileio, configuration: configuration, context: context)
     }
     
-    func shutdown() {
-
-    }
+    func shutdown() {}
 }
