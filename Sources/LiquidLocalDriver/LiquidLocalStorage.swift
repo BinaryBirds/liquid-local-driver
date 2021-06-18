@@ -113,6 +113,18 @@ struct LiquidLocalStorage: FileStorage {
         copy(key: source, to: destination).flatMap { url in delete(key: source).map { url } }
     }
 
+    func getObject(key source: String) -> EventLoopFuture<Data?> {
+        exists(key: source).flatMap { exists in
+            guard exists else {
+                return context.eventLoop.next().makeFailedFuture(LiquidError.keyNotExists)
+            }
+
+            let fileUrl = basePath.appendingPathComponent(source)
+            let data = FileManager.default.contents(atPath: fileUrl.path)
+            return context.eventLoop.next().makeSucceededFuture(data)
+        }
+    }
+
     func delete(key: String) -> EventLoopFuture<Void> {
         exists(key: key).flatMapThrowing { exists in
             guard exists else {
@@ -129,5 +141,3 @@ struct LiquidLocalStorage: FileStorage {
         return context.eventLoop.makeSucceededFuture(exists)
     }
 }
-
-

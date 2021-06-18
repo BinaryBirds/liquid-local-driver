@@ -109,5 +109,17 @@ final class LiquidLocalDriverTests: XCTestCase {
         let res4 = try fs.exists(key: dest).wait()
         XCTAssertTrue(res4)
     }
+
+    func testGetObject() throws {
+        let fs = try createTestStorage()
+        let key = "test-04.txt"
+        let data = Data("file storage test 04".utf8)
+        let res = try fs.upload(key: key, data: data).wait()
+        XCTAssertEqual(res, "http://localhost/assets/test-04.txt")
+
+        let obj = try fs.getObject(key: key).wait()
+        XCTAssertNotNil(obj)
+        XCTAssertEqual(obj, data)
+    }
     
 }
