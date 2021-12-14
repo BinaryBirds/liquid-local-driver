@@ -8,7 +8,6 @@
 import Foundation
 
 struct LiquidLocalStorage: FileStorage {
-
     let fileio: NonBlockingFileIO
     let configuration: LiquidLocalStorageConfiguration
     let context: FileStorageContext
@@ -44,89 +43,77 @@ struct LiquidLocalStorage: FileStorage {
         baseUrl.appendingPathComponent(key).absoluteString
     }
 
-    func upload(key: String, data: Data) -> EventLoopFuture<String> {
-        do {
-            let fileUrl = basePath.appendingPathComponent(key)
-            let location = fileUrl.deletingLastPathComponent()
-            try createDir(at: location)
+    func upload(key: String, data: Data) async throws -> String {
+        let fileUrl = basePath.appendingPathComponent(key)
+        let location = fileUrl.deletingLastPathComponent()
+        try createDir(at: location)
 
-            var buffer = ByteBufferAllocator().buffer(capacity: data.count)
-            buffer.writeBytes(data)
-            return fileio.openFile(path: fileUrl.path, mode: .write, flags: .allowFileCreation(posixMode: posixMode), eventLoop: context.eventLoop)
-            .flatMap { handle in
-                fileio.write(fileHandle: handle, buffer: buffer, eventLoop: context.eventLoop).flatMapThrowing { _ in
-                    try handle.close()
-                    return resolve(key: key)
-                }
+        var buffer = ByteBufferAllocator().buffer(capacity: data.count)
+        buffer.writeBytes(data)
+
+        return try await fileio.openFile(path: fileUrl.path, mode: .write, flags: .allowFileCreation(posixMode: posixMode), eventLoop: context.eventLoop)
+        .flatMap { handle in
+            fileio.write(fileHandle: handle, buffer: buffer, eventLoop: context.eventLoop).flatMapThrowing { _ in
+                try handle.close()
+                return resolve(key: key)
             }
-        }
-        catch {
-            return context.eventLoop.makeFailedFuture(error)
-        }
+        }.get()
     }
 
-    func createDirectory(key: String) -> EventLoopFuture<Void> {
-        do {
-            let dirUrl = basePath.appendingPathComponent(key)
-            try createDir(at: dirUrl)
-            return context.eventLoop.makeSucceededFuture(())
-        }
-        catch {
-            return context.eventLoop.makeFailedFuture(error)
-        }
+    func createDirectory(key: String) async throws {
+        let dirUrl = basePath.appendingPathComponent(key)
+        try createDir(at: dirUrl)
     }
 
-    func list(key: String?) -> EventLoopFuture<[String]> {
+    func getObject(key source: String) async throws -> Data? {
+        let sourceUrl = basePath.appendingPathComponent(source)
+        return try Data(contentsOf: sourceUrl)
+    }
+
+    func list(key: String?) async throws -> [String] {
         let dirUrl = basePath.appendingPathComponent(key ?? "")
-        do {
-            var isDir: ObjCBool = false
-            if FileManager.default.fileExists(atPath: dirUrl.path, isDirectory: &isDir), isDir.boolValue {
-                let files = try FileManager.default.contentsOfDirectory(atPath: dirUrl.path)
-                return context.eventLoop.makeSucceededFuture(files)
-            }
-            /// it was a file... files don't have children, so we return an empty array.
-            return context.eventLoop.makeSucceededFuture([])
+        var isDir: ObjCBool = false
+        if FileManager.default.fileExists(atPath: dirUrl.path, isDirectory: &isDir), isDir.boolValue {
+            let files = try FileManager.default.contentsOfDirectory(atPath: dirUrl.path)
+            return files
         }
-        catch {
-            return context.eventLoop.makeFailedFuture(error)
-        }
+        /// it was a file... files don't have children, so we return an empty array.
+        return []
     }
     
-    func copy(key source: String, to destination: String) -> EventLoopFuture<String> {
-        exists(key: source).flatMap { exists in
-            guard exists else {
-                return context.eventLoop.makeFailedFuture(LiquidError.keyNotExists)
-            }
-            return delete(key: destination)
+    func copy(key source: String, to destination: String) async throws -> String {
+        let exists = await exists(key: source)
+        guard exists else {
+            throw LiquidError.keyNotExists
         }
-        .flatMapThrowing {
-            let sourceUrl = basePath.appendingPathComponent(source)
-            let destinationUrl = basePath.appendingPathComponent(destination)
-            let location = destinationUrl.deletingLastPathComponent()
-            try createDir(at: location)
-            try FileManager.default.copyItem(at: sourceUrl, to: destinationUrl)
-            return resolve(key: destination)
-        }
+        try await delete(key: destination)
+        let sourceUrl = basePath.appendingPathComponent(source)
+        let destinationUrl = basePath.appendingPathComponent(destination)
+        let location = destinationUrl.deletingLastPathComponent()
+        try createDir(at: location)
+        try FileManager.default.copyItem(at: sourceUrl, to: destinationUrl)
+        return resolve(key: destination)
+    
     }
 
-    func move(key source: String, to destination: String) -> EventLoopFuture<String> {
-        copy(key: source, to: destination).flatMap { url in delete(key: source).map { url } }
+    func move(key source: String, to destination: String) async throws -> String {
+        let url = try await copy(key: source, to: destination)
+        try await delete(key: source)
+        return url
     }
 
-    func delete(key: String) -> EventLoopFuture<Void> {
-        exists(key: key).flatMapThrowing { exists in
-            guard exists else {
-                return
-            }
-            let fileUrl = basePath.appendingPathComponent(key)
-            try FileManager.default.removeItem(atPath: fileUrl.path)
+    func delete(key: String) async throws {
+        let exists = await exists(key: key)
+        guard exists else {
+            return
         }
-    }
-
-    func exists(key: String) -> EventLoopFuture<Bool> {
         let fileUrl = basePath.appendingPathComponent(key)
-        let exists = FileManager.default.fileExists(atPath: fileUrl.path)
-        return context.eventLoop.makeSucceededFuture(exists)
+        try FileManager.default.removeItem(atPath: fileUrl.path)
+    }
+
+    func exists(key: String) async -> Bool {
+        let fileUrl = basePath.appendingPathComponent(key)
+        return FileManager.default.fileExists(atPath: fileUrl.path)
     }
 }
 
