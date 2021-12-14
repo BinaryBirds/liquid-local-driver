@@ -36,8 +36,8 @@ let package = Package(
        .macOS(.v10_15)
     ],
     dependencies: [
-        .package(url: "https://github.com/binarybirds/liquid", from: "1.2.0"),
-        .package(url: "https://github.com/binarybirds/liquid-local-driver", from: "1.2.0"),
+        .package(url: "https://github.com/binarybirds/liquid", from: "1.3.0"),
+        .package(url: "https://github.com/binarybirds/liquid-local-driver", from: "1.3.0"),
     ],
     targets: [
         .target(name: "App", dependencies: [
@@ -67,13 +67,13 @@ let fs = storages.fileStorage(.local, logger: .init(label: "[test-logger]"), on:
 /// test file upload
 let key = "test.txt"
 let data = Data("file storage test".utf8)
-let res = try fs.upload(key: key, data: data).wait()
+let res = try await fs.upload(key: key, data: data)
 
 /// http://localhost/assets/test.txt
 let url = req.fs.resolve(key: key)
 
 /// delete key
-try req.fs.delete(key: key).wait()
+try await req.fs.delete(key: key)
 
 ```
 
