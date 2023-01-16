@@ -12,13 +12,16 @@ import LiquidKit
 struct LocalFileStorageDriver {
 
     let fileio: NonBlockingFileIO
+    let byteBufferAllocator: ByteBufferAllocator
     let context: FileStorageDriverContext
     
     init(
         fileio: NonBlockingFileIO,
+        byteBufferAllocator: ByteBufferAllocator,
         context: FileStorageDriverContext
     ) {
         self.fileio = fileio
+        self.byteBufferAllocator = byteBufferAllocator
         self.context = context
     }
 }
@@ -64,7 +67,7 @@ extension LocalFileStorageDriver: FileStorageDriver {
         let location = fileUrl.deletingLastPathComponent()
         try createDir(at: location)
 
-        var buffer = ByteBufferAllocator().buffer(capacity: data.count)
+        var buffer = byteBufferAllocator.buffer(capacity: data.count)
         buffer.writeBytes(data)
 
         return try await fileio.openFile(

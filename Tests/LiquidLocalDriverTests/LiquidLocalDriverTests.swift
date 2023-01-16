@@ -15,6 +15,7 @@ final class LiquidLocalDriverTests: XCTestCase {
 
         let driverFactoryStorage = FileStorageDriverFactoryStorage(
             eventLoopGroup: eventLoopGroup,
+            byteBufferAllocator: .init(),
             fileio: fileio
         )
 

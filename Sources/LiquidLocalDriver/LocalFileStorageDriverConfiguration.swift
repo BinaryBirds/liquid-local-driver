@@ -24,6 +24,9 @@ struct LocalFileStorageDriverConfiguration: FileStorageDriverConfiguration {
     func makeDriverFactory(
         using storage: FileStorageDriverFactoryStorage
     ) -> FileStorageDriverFactory {
-        LocalFileStorageDriverFactory(fileio: storage.fileio)
+        LocalFileStorageDriverFactory(
+            fileio: storage.fileio,
+            byteBufferAllocator: storage.byteBufferAllocator
+        )
     }
 }
