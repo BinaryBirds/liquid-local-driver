@@ -1,44 +1,60 @@
 //
-//  LiquidLocalStorage.swift
-//  LiquidLocalStorageDriver
+//  LocalFileStorageDriver.swift
+//  LiquidLocalDriver
 //
 //  Created by Tibor Bodecs on 2020. 04. 28..
 //
 
 import Foundation
+import NIO
+import LiquidKit
 
-struct LiquidLocalStorage: FileStorage {
+struct LocalFileStorageDriver {
+
     let fileio: NonBlockingFileIO
-    let configuration: LiquidLocalStorageConfiguration
-    let context: FileStorageContext
+    let context: FileStorageDriverContext
     
-    /// default posix mode used to create files and directories
-    let posixMode: mode_t
-    
-    init(fileio: NonBlockingFileIO, configuration: LiquidLocalStorageConfiguration, context: FileStorageContext, posixMode: mode_t = 0o744) {
+    init(
+        fileio: NonBlockingFileIO,
+        context: FileStorageDriverContext
+    ) {
         self.fileio = fileio
-        self.configuration = configuration
         self.context = context
-        self.posixMode = posixMode
+    }
+}
+
+private extension LocalFileStorageDriver {
+    
+    var configuration: LocalFileStorageDriverConfiguration {
+        context.configuration as! LocalFileStorageDriverConfiguration
     }
     
-    // MARK: - private
-
-    private var basePath: URL {
-        URL(fileURLWithPath: configuration.publicPath).appendingPathComponent(configuration.workDirectory)
+    var posixMode: mode_t {
+        configuration.posixMode
     }
+
+    var basePath: URL {
+        URL(fileURLWithPath: configuration.publicPath)
+            .appendingPathComponent(configuration.workDirectory)
+    }
+
+    var baseUrl: URL {
+        URL(string: configuration.publicUrl)!
+            .appendingPathComponent(configuration.workDirectory)
+    }
+
+    func createDir(at url: URL) throws {
+        try FileManager.default.createDirectory(
+            at: url,
+            withIntermediateDirectories: true,
+            attributes: [
+                .posixPermissions: posixMode
+            ])
+    }
+}
+
+extension LocalFileStorageDriver: FileStorageDriver {
     
-    private var baseUrl: URL {
-        URL(string: configuration.publicUrl)!.appendingPathComponent(configuration.workDirectory)
-    }
-
-    /// creates the entire directory structure with the necessary posix permissions
-    private func createDir(at url: URL) throws {
-        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: posixMode])
-    }
-
-    // MARK: - api
-
     func resolve(key: String) -> String {
         baseUrl.appendingPathComponent(key).absoluteString
     }
@@ -51,9 +67,19 @@ struct LiquidLocalStorage: FileStorage {
         var buffer = ByteBufferAllocator().buffer(capacity: data.count)
         buffer.writeBytes(data)
 
-        return try await fileio.openFile(path: fileUrl.path, mode: .write, flags: .allowFileCreation(posixMode: posixMode), eventLoop: context.eventLoop)
+        return try await fileio.openFile(
+            path: fileUrl.path,
+            mode: .write,
+            flags: .allowFileCreation(posixMode: posixMode),
+            eventLoop: context.eventLoop
+        )
         .flatMap { handle in
-            fileio.write(fileHandle: handle, buffer: buffer, eventLoop: context.eventLoop).flatMapThrowing { _ in
+            fileio.write(
+                fileHandle: handle,
+                buffer: buffer,
+                eventLoop: context.eventLoop
+            )
+            .flatMapThrowing { _ in
                 try handle.close()
                 return resolve(key: key)
             }
@@ -84,7 +110,7 @@ struct LiquidLocalStorage: FileStorage {
     func copy(key source: String, to destination: String) async throws -> String {
         let exists = await exists(key: source)
         guard exists else {
-            throw LiquidError.keyNotExists
+            throw FileStorageDriverError.keyNotExists
         }
         try await delete(key: destination)
         let sourceUrl = basePath.appendingPathComponent(source)
@@ -116,5 +142,3 @@ struct LiquidLocalStorage: FileStorage {
         return FileManager.default.fileExists(atPath: fileUrl.path)
     }
 }
-
-

@@ -1,11 +1,14 @@
 //
-//  LiquidLocalStorageConfiguration.swift
-//  LiquidLocalStorageDriver
+//  LocalFileStorageDriverConfiguration.swift
+//  LiquidLocalDriver
 //
 //  Created by Tibor Bodecs on 2020. 04. 28..
 //
 
-struct LiquidLocalStorageConfiguration: FileStorageConfiguration {
+import NIO
+import LiquidKit
+
+struct LocalFileStorageDriverConfiguration: FileStorageDriverConfiguration {
     
     /// The public base URL used to resolve file keys (e.g. http://localhost/)
     let publicUrl: String
@@ -15,8 +18,12 @@ struct LiquidLocalStorageConfiguration: FileStorageConfiguration {
     
     /// The working directory name used to save assets (e.g. assets)
     let workDirectory: String
+    
+    let posixMode: mode_t
 
-    func makeDriver(for storages: FileStorages) -> FileStorageDriver {
-        LiquidLocalStorageDriver(fileio: storages.fileio, configuration: self)
+    func makeDriverFactory(
+        using storage: FileStorageDriverFactoryStorage
+    ) -> FileStorageDriverFactory {
+        LocalFileStorageDriverFactory(fileio: storage.fileio)
     }
 }

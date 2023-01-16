@@ -1,21 +1,47 @@
-// swift-tools-version:5.5
+// swift-tools-version:5.7
 import PackageDescription
 
 let package = Package(
     name: "liquid-local-driver",
     platforms: [
-       .macOS(.v10_15)
+        .macOS(.v10_15)
     ],
     products: [
-        .library(name: "LiquidLocalDriver", targets: ["LiquidLocalDriver"]),
+        .library(
+            name: "LiquidLocalDriver",
+            targets: [
+                "LiquidLocalDriver"
+            ]
+        ),
     ],
     dependencies: [
-        .package(url: "https://github.com/binarybirds/liquid-kit.git", from: "1.3.2"),
+        .package(
+            url: "https://github.com/binarybirds/liquid-kit",
+            branch: "dev"
+        ),
     ],
     targets: [
-        .target(name: "LiquidLocalDriver", dependencies: [
-            .product(name: "LiquidKit", package: "liquid-kit"),
-        ]),
-        .testTarget(name: "LiquidLocalDriverTests", dependencies: ["LiquidLocalDriver"]),
+        .target(
+            name: "LiquidLocalDriver",
+            dependencies: [
+                .product(
+                    name: "LiquidKit",
+                    package: "liquid-kit"
+                ),
+            ]
+        ),
+        .testTarget(
+            name: "LiquidLocalDriverTests",
+            dependencies: [
+                .product(
+                    name: "LiquidKit",
+                    package: "liquid-kit"
+                ),
+                .target(name: "LiquidLocalDriver"),
+            ],
+            exclude: [
+                "./assets/"
+            ]
+        ),
     ]
 )

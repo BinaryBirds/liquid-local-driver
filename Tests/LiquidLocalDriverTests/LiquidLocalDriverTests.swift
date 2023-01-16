@@ -1,25 +1,47 @@
 import XCTest
+import NIO
+import Logging
+import LiquidKit
 @testable import LiquidLocalDriver
 
 final class LiquidLocalDriverTests: XCTestCase {
-    
-    private func createTestStorage() throws -> FileStorage {
-        
-        let baseUrl = #file.split(separator: "/").dropLast().joined(separator: "/")
 
-        let elg = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+    func createTestDriver() -> LocalFileStorageDriver {
+        let logger = Logger(label: "test-logger")
+        let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         let pool = NIOThreadPool(numberOfThreads: 1)
+        let fileio = NonBlockingFileIO(threadPool: pool)
         pool.start()
 
-        let fileio = NonBlockingFileIO(threadPool: pool)
+        let driverFactoryStorage = FileStorageDriverFactoryStorage(
+            eventLoopGroup: eventLoopGroup,
+            fileio: fileio
+        )
 
-        let storages = FileStorages(fileio: fileio)
-        storages.use(.local(publicUrl: "http://localhost/", publicPath: baseUrl, workDirectory: "assets"), as: .local)
-        return storages.fileStorage(.local, logger: .init(label: "[test-logger]"), on: elg.next())!
+        let basePath = "/" + #file
+            .split(separator: "/")
+            .dropLast()
+            .joined(separator: "/")
+
+        print(basePath)
+        
+        driverFactoryStorage.use(
+            .local(
+                publicUrl: "http://localhost/",
+                publicPath: basePath,
+                workDirectory: "assets"
+            ),
+            as: .local
+        )
+
+        return driverFactoryStorage.makeDriver(
+            logger: logger,
+            on: eventLoopGroup.next()
+        )! as! LocalFileStorageDriver
     }
-    
+        
     func testUpload() async throws {
-        let fs = try createTestStorage()
+        let fs = createTestDriver()
         let key = "test-01.txt"
         let data = Data("file storage test 01".utf8)
         let res = try await fs.upload(key: key, data: data)
@@ -27,7 +49,7 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
     
     func testCreateDirectory() async throws {
-        let fs = try createTestStorage()
+        let fs = createTestDriver()
         let key = "dir01/dir02/dir03"
         let _ = try await fs.createDirectory(key: key)
         let keys1 = try await fs.list(key: "dir01")
@@ -37,7 +59,7 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
     
     func testList() async throws {
-        let fs = try createTestStorage()
+        let fs = createTestDriver()
         let key1 = "dir02/dir03"
         let _ = try await fs.createDirectory(key: key1)
         
@@ -50,7 +72,7 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
     
     func testExists() async throws {
-        let fs = try createTestStorage()
+        let fs = createTestDriver()
 
         let key1 = "non-existing-thing"
         let exists1 = await fs.exists(key: key1)
@@ -63,7 +85,7 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
     
     func testGetFile() async throws {
-        let fs = try createTestStorage()
+        let fs = createTestDriver()
 
         let key2 = "dir04/test-01.txt"
         let data = Data("test".utf8)
@@ -77,7 +99,7 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
     
     func testListFile() async throws {
-        let fs = try createTestStorage()
+        let fs = createTestDriver()
 
         let key2 = "dir04/test-01.txt"
         let data = Data("test".utf8)
@@ -88,7 +110,7 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
     
     func testCopy() async throws {
-        let fs = try createTestStorage()
+        let fs = createTestDriver()
         let key = "test-02.txt"
         let data = Data("file storage test 02".utf8)
         let res = try await fs.upload(key: key, data: data)
@@ -106,7 +128,7 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
     
     func testMove() async throws {
-        let fs = try createTestStorage()
+        let fs = createTestDriver()
         let key = "test-04.txt"
         let data = Data("file storage test 04".utf8)
         let res = try await fs.upload(key: key, data: data)
