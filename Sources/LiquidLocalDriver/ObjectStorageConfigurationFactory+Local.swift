@@ -1,5 +1,5 @@
 //
-//  FileStorageDriverConfigurationFactory.swift
+//  ObjectStorageConfigurationFactory+Local.swift
 //  LiquidLocalDriver
 //
 //  Created by Tibor Bodecs on 2020. 04. 28..
@@ -8,7 +8,7 @@
 import NIO
 import LiquidKit
 
-public extension FileStorageDriverConfigurationFactory {
+public extension ObjectStorageConfigurationFactory {
     
     ///
     /// Creates a local configuration object based on the parameters
@@ -24,9 +24,9 @@ public extension FileStorageDriverConfigurationFactory {
         publicPath: String,
         workDirectory: String,
         posixMode: mode_t = 0o744
-    ) -> FileStorageDriverConfigurationFactory {
+    ) -> ObjectStorageConfigurationFactory {
         .init {
-            LocalFileStorageDriverConfiguration(
+            LocalObjectStorageConfiguration(
                 publicUrl: publicUrl,
                 publicPath: publicPath,
                 workDirectory: workDirectory,

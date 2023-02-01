@@ -6,7 +6,7 @@
       "location" : "https://github.com/binarybirds/liquid-kit",
       "state" : {
         "branch" : "dev",
-        "revision" : "de48320cac0ab7a05a230ecf5fd8429958254cb8"
+        "revision" : "71ab968660ecdc75020e393579f16e7c8a238161"
       }
     },
     {
@@ -32,8 +32,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-log.git",
       "state" : {
-        "revision" : "6fe203dc33195667ce1759bf0182975e4653ba1c",
-        "version" : "1.4.4"
+        "revision" : "32e8d724467f8fe623624570367e3d50c5638e46",
+        "version" : "1.5.2"
       }
     },
     {
@@ -41,8 +41,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio.git",
       "state" : {
-        "revision" : "4ad2c3733845abd9ee8892a323b0fa0d80f37e34",
-        "version" : "2.47.0"
+        "revision" : "45167b8006448c79dda4b7bd604e07a034c15c49",
+        "version" : "2.48.0"
       }
     }
   ],

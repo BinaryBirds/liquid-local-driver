@@ -1,5 +1,5 @@
 //
-//  LocalFileStorageDriverConfiguration.swift
+//  LocalObjectStorageConfiguration.swift
 //  LiquidLocalDriver
 //
 //  Created by Tibor Bodecs on 2020. 04. 28..
@@ -8,8 +8,8 @@
 import NIO
 import LiquidKit
 
-struct LocalFileStorageDriverConfiguration: FileStorageDriverConfiguration {
-    
+struct LocalObjectStorageConfiguration: ObjectStorageConfiguration {
+
     /// The public base URL used to resolve file keys (e.g. http://localhost/)
     let publicUrl: String
     
@@ -21,12 +21,12 @@ struct LocalFileStorageDriverConfiguration: FileStorageDriverConfiguration {
     
     let posixMode: mode_t
 
-    func makeDriverFactory(
-        using storage: FileStorageDriverFactoryStorage
-    ) -> FileStorageDriverFactory {
-        LocalFileStorageDriverFactory(
-            fileio: storage.fileio,
-            byteBufferAllocator: storage.byteBufferAllocator
+    func make(
+        using storages: ObjectStorages
+    ) -> ObjectStorageDriver {
+        LocalObjectStorageDriver(
+            fileio: storages.fileio,
+            byteBufferAllocator: storages.byteBufferAllocator
         )
     }
 }

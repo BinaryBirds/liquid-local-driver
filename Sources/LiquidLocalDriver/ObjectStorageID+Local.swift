@@ -1,5 +1,5 @@
 //
-//  FileStorageDriverID.swift
+//  ObjectStorageID+Local.swift
 //  LiquidLocalDriver
 //
 //  Created by Tibor Bodecs on 2020. 05. 02..
@@ -7,8 +7,8 @@
 
 import LiquidKit
 
-public extension FileStorageDriverID {
+public extension ObjectStorageID {
     
     /// local file storage identifier
-    static let local: FileStorageDriverID = .init(string: "local")
+    static let local: ObjectStorageID = .init(string: "local")
 }

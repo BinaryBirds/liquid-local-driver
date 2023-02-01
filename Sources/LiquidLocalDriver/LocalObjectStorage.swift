@@ -9,16 +9,16 @@ import Foundation
 import NIO
 import LiquidKit
 
-struct LocalFileStorageDriver {
+struct LocalObjectStorage {
 
     let fileio: NonBlockingFileIO
     let byteBufferAllocator: ByteBufferAllocator
-    let context: FileStorageDriverContext
+    let context: ObjectStorageContext
     
     init(
         fileio: NonBlockingFileIO,
         byteBufferAllocator: ByteBufferAllocator,
-        context: FileStorageDriverContext
+        context: ObjectStorageContext
     ) {
         self.fileio = fileio
         self.byteBufferAllocator = byteBufferAllocator
@@ -26,10 +26,10 @@ struct LocalFileStorageDriver {
     }
 }
 
-private extension LocalFileStorageDriver {
+private extension LocalObjectStorage {
     
-    var configuration: LocalFileStorageDriverConfiguration {
-        context.configuration as! LocalFileStorageDriverConfiguration
+    var configuration: LocalObjectStorageConfiguration {
+        context.configuration as! LocalObjectStorageConfiguration
     }
     
     var posixMode: mode_t {
@@ -56,7 +56,7 @@ private extension LocalFileStorageDriver {
     }
 }
 
-extension LocalFileStorageDriver: FileStorageDriver {
+extension LocalObjectStorage: ObjectStorage {
     
     func resolve(key: String) -> String {
         baseUrl.appendingPathComponent(key).absoluteString
@@ -67,9 +67,6 @@ extension LocalFileStorageDriver: FileStorageDriver {
         let location = fileUrl.deletingLastPathComponent()
         try createDir(at: location)
 
-        var buffer = byteBufferAllocator.buffer(capacity: data.count)
-        buffer.writeBytes(data)
-
         return try await fileio.openFile(
             path: fileUrl.path,
             mode: .write,
@@ -77,7 +74,10 @@ extension LocalFileStorageDriver: FileStorageDriver {
             eventLoop: context.eventLoop
         )
         .flatMap { handle in
-            fileio.write(
+            var buffer = byteBufferAllocator.buffer(capacity: data.count)
+            buffer.writeBytes(data)
+
+            return fileio.write(
                 fileHandle: handle,
                 buffer: buffer,
                 eventLoop: context.eventLoop
@@ -113,7 +113,7 @@ extension LocalFileStorageDriver: FileStorageDriver {
     func copy(key source: String, to destination: String) async throws -> String {
         let exists = await exists(key: source)
         guard exists else {
-            throw FileStorageDriverError.keyNotExists
+            throw ObjectStorageError.keyNotExists
         }
         try await delete(key: destination)
         let sourceUrl = basePath.appendingPathComponent(source)

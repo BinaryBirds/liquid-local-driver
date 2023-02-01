@@ -6,14 +6,14 @@ import LiquidKit
 
 final class LiquidLocalDriverTests: XCTestCase {
 
-    func createTestDriver() -> LocalFileStorageDriver {
+    func createTestDriver() -> LocalObjectStorage {
         let logger = Logger(label: "test-logger")
         let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         let pool = NIOThreadPool(numberOfThreads: 1)
         let fileio = NonBlockingFileIO(threadPool: pool)
         pool.start()
 
-        let driverFactoryStorage = FileStorageDriverFactoryStorage(
+        let objectStorages = ObjectStorages(
             eventLoopGroup: eventLoopGroup,
             byteBufferAllocator: .init(),
             fileio: fileio
@@ -26,7 +26,7 @@ final class LiquidLocalDriverTests: XCTestCase {
 
         print(basePath)
         
-        driverFactoryStorage.use(
+        objectStorages.use(
             .local(
                 publicUrl: "http://localhost/",
                 publicPath: basePath,
@@ -35,10 +35,10 @@ final class LiquidLocalDriverTests: XCTestCase {
             as: .local
         )
 
-        return driverFactoryStorage.makeDriver(
+        return objectStorages.make(
             logger: logger,
             on: eventLoopGroup.next()
-        )! as! LocalFileStorageDriver
+        )! as! LocalObjectStorage
     }
         
     func testUpload() async throws {
