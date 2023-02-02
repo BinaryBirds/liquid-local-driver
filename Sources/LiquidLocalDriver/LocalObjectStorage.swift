@@ -7,6 +7,7 @@
 
 import Foundation
 import NIO
+import NIOFoundationCompat
 import LiquidKit
 
 struct LocalObjectStorage {
@@ -58,7 +59,7 @@ private extension LocalObjectStorage {
 
 extension LocalObjectStorage: ObjectStorage {
     
-    func createChecksumCalculator() -> LiquidKit.ChecksumCalculator {
+    func createChecksumCalculator() -> ChecksumCalculator {
         CRC32()
     }
 
@@ -77,6 +78,17 @@ extension LocalObjectStorage: ObjectStorage {
         let location = fileUrl.deletingLastPathComponent()
         try createDir(at: location)
         
+        // TODO: needs better solution
+        let calculator = createChecksumCalculator()
+        if let data = buffer.getData(at: 0, length: buffer.readableBytes) {
+            calculator.update(.init(data))
+        }
+        let dataChecksum = calculator.finalize()
+        
+        if let inputchecksum = checksum, inputchecksum != dataChecksum {
+            throw ObjectStorageError.invalidChecksum
+        }
+
         return try await fileio.openFile(
             path: fileUrl.path,
             mode: .write,
@@ -108,7 +120,7 @@ extension LocalObjectStorage: ObjectStorage {
     ) async throws -> ByteBuffer {
         let sourceUrl = basePath.appendingPathComponent(source)
         let data = try Data(contentsOf: sourceUrl)
-        return ByteBuffer.init(bytes: [UInt8](data))
+        return .init(data: data)
     }
 
     func list(
@@ -167,7 +179,10 @@ extension LocalObjectStorage: ObjectStorage {
     func createMultipartUpload(
         key: String
     ) async throws -> MultipartUpload.ID {
-        .init("")
+        let uploadId = MultipartUpload.ID(UUID().uuidString)
+        let multipartDirKey = key + "+multipart/" + uploadId.value
+        try await create(key: multipartDirKey)
+        return uploadId
     }
     
     func uploadMultipartChunk(
@@ -176,22 +191,47 @@ extension LocalObjectStorage: ObjectStorage {
         uploadId: MultipartUpload.ID,
         partNumber: Int
     ) async throws -> MultipartUpload.Chunk {
-        .init(id: "", number: 0)
+        let multipartDirKey = key + "+multipart/" + uploadId.value
+        let fileId = UUID().uuidString
+        let fileKey = multipartDirKey + "/" + fileId + "-" + String(partNumber)
+        try await upload(key: fileKey, buffer: buffer, checksum: nil)
+        return .init(id: fileId, number: partNumber)
     }
     
     func cancelMultipartUpload(
         key: String,
         uploadId: MultipartUpload.ID
     ) async throws {
-        
+        let multipartBaseKey = key + "+multipart/"
+        try await delete(key: multipartBaseKey)
     }
     
     func completeMultipartUpload(
         key: String,
         uploadId: MultipartUpload.ID,
         checksum: String?,
-        chunks: [LiquidKit.MultipartUpload.Chunk]
+        chunks: [MultipartUpload.Chunk]
     ) async throws {
+        let multipartBaseKey = key + "+multipart/"
+        let multipartDirKey = multipartBaseKey + uploadId.value
+
+        var data = Data()
+        for chunk in chunks {
+            let chunkKey = multipartDirKey + "/" + chunk.id + "-" + String(chunk.number)
+
+            // TODO: needs better solution
+            let buffer = try await download(key: chunkKey)
+            guard let chunkData = buffer.getData(at: 0, length: buffer.readableBytes) else {
+                throw ObjectStorageError.keyNotExists
+            }
+            data.append(chunkData)
+        }
         
+        try await upload(
+            key: key,
+            buffer: .init(data: data),
+            checksum: checksum
+        )
+        try await delete(key: multipartBaseKey)
     }
 }

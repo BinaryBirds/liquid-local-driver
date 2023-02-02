@@ -20,9 +20,13 @@ let package = Package(
             branch: "dev"
         ),
         .package(
-            url: "https://github.com/apple/swift-nio.git",
+            url: "https://github.com/apple/swift-nio",
             from: "2.48.0"
         ),
+//        .package(
+//            url: "https://github.com/apple/swift-crypto",
+//            from: "2.0.0"
+//        ),
     ],
     targets: [
         .target(
@@ -36,6 +40,14 @@ let package = Package(
                     name: "NIO",
                     package: "swift-nio"
                 ),
+                .product(
+                    name: "NIOFoundationCompat",
+                    package: "swift-nio"
+                ),
+//                .product(
+//                    name: "Crypto",
+//                    package: "swift-crypto"
+//                ),
             ]
         ),
         .testTarget(
@@ -46,9 +58,6 @@ let package = Package(
                     package: "liquid-kit"
                 ),
                 .target(name: "LiquidLocalDriver"),
-            ],
-            exclude: [
-                "./assets/"
             ]
         ),
     ]
