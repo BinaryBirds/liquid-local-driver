@@ -1,5 +1,5 @@
 //
-//  LocalFileStorageDriver.swift
+//  LocalObjectStorage.swift
 //  LiquidLocalDriver
 //
 //  Created by Tibor Bodecs on 2020. 04. 28..

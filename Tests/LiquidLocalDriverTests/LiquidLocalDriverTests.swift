@@ -16,7 +16,14 @@ final class LiquidLocalDriverTests: XCTestCase {
             .joined(separator: "/")
     }
     
-    private func createTestDriver() -> LocalObjectStorage {
+    private static func getWorkPath() -> String {
+        getBasePath() + "/" + workDir
+    }
+    
+    private func createTestDriver(
+        path: String,
+        dir: String
+    ) -> LocalObjectStorage {
         let logger = Logger(label: "test-logger")
         let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         let pool = NIOThreadPool(numberOfThreads: 1)
@@ -32,8 +39,8 @@ final class LiquidLocalDriverTests: XCTestCase {
         objectStorages.use(
             .local(
                 publicUrl: "http://localhost/",
-                publicPath: Self.getBasePath(),
-                workDirectory: Self.workDir
+                publicPath: path,
+                workDirectory: dir
             ),
             as: .local
         )
@@ -44,17 +51,25 @@ final class LiquidLocalDriverTests: XCTestCase {
         )! as! LocalObjectStorage
     }
 
+    
+    var tmpPath: String!
+    var fs: LocalObjectStorage!
 
-    // NOTE: unique dir for each test, this won't work for parallel test runs
-    override class func tearDown() {
-//        let path = getBasePath() + "/" + workDir
-//        try? FileManager.default.removeItem(atPath: path)
+    override func setUp() {
+        let workDir = UUID().uuidString
+        tmpPath = Self.getWorkPath() + "/" + workDir
+        
+        fs = createTestDriver(path: tmpPath, dir: workDir)
+    }
+
+    override func tearDown() {
+        try? FileManager.default.removeItem(atPath: tmpPath)
     }
 
     // MARK: - tests
 
     func testUpload() async throws {
-        let fs = createTestDriver()
+
         let key = "test-01.txt"
         let data = Data("file storage test 01".utf8)
         try await fs.upload(
@@ -65,7 +80,7 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
     
     func testUploadValidChecksum() async throws {
-        let fs = createTestDriver()
+        
         let key = "test-01.txt"
         let data = Data("file storage test 01".utf8)
         
@@ -81,7 +96,7 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
     
     func testUploadInvalidChecksum() async throws {
-        let fs = createTestDriver()
+        
         let key = "test-01.txt"
         let data = Data("file storage test 01".utf8)
         
@@ -99,8 +114,6 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
 
     func testCreate() async throws {
-        let fs = createTestDriver()
-        
         let key = "dir01/dir02/dir03"
         try await fs.create(key: key)
         
@@ -112,7 +125,6 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
 
     func testList() async throws {
-        let fs = createTestDriver()
         let key1 = "dir02/dir03"
         try await fs.create(key: key1)
 
@@ -129,8 +141,6 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
 
     func testExists() async throws {
-        let fs = createTestDriver()
-
         let key1 = "non-existing-thing"
         let exists1 = await fs.exists(key: key1)
         XCTAssertFalse(exists1)
@@ -142,8 +152,6 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
 
     func testDownload() async throws {
-        let fs = createTestDriver()
-
         let key2 = "dir04/test-01.txt"
         let data = Data("test".utf8)
         try await fs.upload(
@@ -160,8 +168,6 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
     
     func testDownloadRange() async throws {
-        let fs = createTestDriver()
-
         let key2 = "dir04/test-01.txt"
         let data = Data("test".utf8)
         try await fs.upload(
@@ -181,8 +187,6 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
 
     func testListFile() async throws {
-        let fs = createTestDriver()
-
         let key2 = "dir04/test-01.txt"
         let data = Data("test".utf8)
         try await fs.upload(
@@ -196,7 +200,6 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
 
     func testCopy() async throws {
-        let fs = createTestDriver()
         let key = "test-02.txt"
         let data = Data("file storage test 02".utf8)
         try await fs.upload(
@@ -216,7 +219,6 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
 
     func testMove() async throws {
-        let fs = createTestDriver()
         let key = "test-04.txt"
         let data = Data("file storage test 04".utf8)
         try await fs.upload(
@@ -236,8 +238,6 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
     
     func testMultipartUploadCreate() async throws {
-        let fs = createTestDriver()
-
         let key = "test-04.txt"
         let id = try await fs.createMultipartUpload(key: key)
 
@@ -246,7 +246,6 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
     
     func testMultipartUploadCancel() async throws {
-        let fs = createTestDriver()
 
         let key = "test-04.txt"
         let id = try await fs.createMultipartUpload(key: key)
@@ -258,8 +257,6 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
 
     func testMultipartUploadChunk() async throws {
-        let fs = createTestDriver()
-
         let key = "test-04.txt"
         let data = Data("file storage test 04".utf8)
         
@@ -279,7 +276,6 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
     
     func testMultipartUploadComplete() async throws {
-        let fs = createTestDriver()
 
         let key = "test-04.txt"
 
