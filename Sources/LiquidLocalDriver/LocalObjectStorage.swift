@@ -58,15 +58,25 @@ private extension LocalObjectStorage {
 
 extension LocalObjectStorage: ObjectStorage {
     
-    func resolve(key: String) -> String {
+    func createChecksumCalculator() -> LiquidKit.ChecksumCalculator {
+        CRC32()
+    }
+
+    func resolve(
+        key: String
+    ) -> String {
         baseUrl.appendingPathComponent(key).absoluteString
     }
 
-    func upload(key: String, data: Data) async throws -> String {
+    func upload(
+        key: String,
+        buffer: ByteBuffer,
+        checksum: String?
+    ) async throws {
         let fileUrl = basePath.appendingPathComponent(key)
         let location = fileUrl.deletingLastPathComponent()
         try createDir(at: location)
-
+        
         return try await fileio.openFile(
             path: fileUrl.path,
             mode: .write,
@@ -74,32 +84,36 @@ extension LocalObjectStorage: ObjectStorage {
             eventLoop: context.eventLoop
         )
         .flatMap { handle in
-            var buffer = byteBufferAllocator.buffer(capacity: data.count)
-            buffer.writeBytes(data)
-
-            return fileio.write(
+            fileio.write(
                 fileHandle: handle,
                 buffer: buffer,
                 eventLoop: context.eventLoop
             )
             .flatMapThrowing { _ in
                 try handle.close()
-                return resolve(key: key)
             }
-        }.get()
+        }
+        .get()
     }
 
-    func createDirectory(key: String) async throws {
+    func create(
+        key: String
+    ) async throws {
         let dirUrl = basePath.appendingPathComponent(key)
         try createDir(at: dirUrl)
     }
 
-    func getObject(key source: String) async throws -> Data? {
+    func download(
+        key source: String
+    ) async throws -> ByteBuffer {
         let sourceUrl = basePath.appendingPathComponent(source)
-        return try Data(contentsOf: sourceUrl)
+        let data = try Data(contentsOf: sourceUrl)
+        return ByteBuffer.init(bytes: [UInt8](data))
     }
 
-    func list(key: String?) async throws -> [String] {
+    func list(
+        key: String?
+    ) async throws -> [String] {
         let dirUrl = basePath.appendingPathComponent(key ?? "")
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: dirUrl.path, isDirectory: &isDir), isDir.boolValue {
@@ -110,7 +124,10 @@ extension LocalObjectStorage: ObjectStorage {
         return []
     }
     
-    func copy(key source: String, to destination: String) async throws -> String {
+    func copy(
+        key source: String,
+        to destination: String
+    ) async throws {
         let exists = await exists(key: source)
         guard exists else {
             throw ObjectStorageError.keyNotExists
@@ -121,17 +138,19 @@ extension LocalObjectStorage: ObjectStorage {
         let location = destinationUrl.deletingLastPathComponent()
         try createDir(at: location)
         try FileManager.default.copyItem(at: sourceUrl, to: destinationUrl)
-        return resolve(key: destination)
-    
     }
 
-    func move(key source: String, to destination: String) async throws -> String {
-        let url = try await copy(key: source, to: destination)
+    func move(
+        key source: String,
+        to destination: String
+    ) async throws {
+        try await copy(key: source, to: destination)
         try await delete(key: source)
-        return url
     }
 
-    func delete(key: String) async throws {
+    func delete(
+        key: String
+    ) async throws {
         let exists = await exists(key: key)
         guard exists else {
             return
@@ -143,5 +162,36 @@ extension LocalObjectStorage: ObjectStorage {
     func exists(key: String) async -> Bool {
         let fileUrl = basePath.appendingPathComponent(key)
         return FileManager.default.fileExists(atPath: fileUrl.path)
+    }
+    
+    func createMultipartUpload(
+        key: String
+    ) async throws -> MultipartUpload.ID {
+        .init("")
+    }
+    
+    func uploadMultipartChunk(
+        key: String,
+        buffer: ByteBuffer,
+        uploadId: MultipartUpload.ID,
+        partNumber: Int
+    ) async throws -> MultipartUpload.Chunk {
+        .init(id: "", number: 0)
+    }
+    
+    func cancelMultipartUpload(
+        key: String,
+        uploadId: MultipartUpload.ID
+    ) async throws {
+        
+    }
+    
+    func completeMultipartUpload(
+        key: String,
+        uploadId: MultipartUpload.ID,
+        checksum: String?,
+        chunks: [LiquidKit.MultipartUpload.Chunk]
+    ) async throws {
+        
     }
 }

@@ -19,6 +19,10 @@ let package = Package(
             url: "https://github.com/binarybirds/liquid-kit",
             branch: "dev"
         ),
+        .package(
+            url: "https://github.com/apple/swift-nio.git",
+            from: "2.48.0"
+        ),
     ],
     targets: [
         .target(
@@ -27,6 +31,10 @@ let package = Package(
                 .product(
                     name: "LiquidKit",
                     package: "liquid-kit"
+                ),
+                .product(
+                    name: "NIO",
+                    package: "swift-nio"
                 ),
             ]
         ),
