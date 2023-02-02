@@ -116,10 +116,24 @@ extension LocalObjectStorage: ObjectStorage {
     }
 
     func download(
-        key source: String
+        key: String,
+        range: ClosedRange<UInt>?
     ) async throws -> ByteBuffer {
-        let sourceUrl = basePath.appendingPathComponent(source)
+        let sourceUrl = basePath.appendingPathComponent(key)
         let data = try Data(contentsOf: sourceUrl)
+
+        if let range, range.upperBound < data.count {
+            return .init(
+                data: data.subdata(
+                    in: .init(
+                        uncheckedBounds: (
+                            Int(range.lowerBound),
+                            Int(range.upperBound)
+                        )
+                    )
+                )
+            )
+        }
         return .init(data: data)
     }
 
@@ -220,7 +234,7 @@ extension LocalObjectStorage: ObjectStorage {
             let chunkKey = multipartDirKey + "/" + chunk.id + "-" + String(chunk.number)
 
             // TODO: needs better solution
-            let buffer = try await download(key: chunkKey)
+            let buffer = try await download(key: chunkKey, range: nil)
             guard let chunkData = buffer.getData(at: 0, length: buffer.readableBytes) else {
                 throw ObjectStorageError.keyNotExists
             }
