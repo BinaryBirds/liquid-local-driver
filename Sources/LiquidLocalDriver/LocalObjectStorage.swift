@@ -116,7 +116,23 @@ extension LocalObjectStorage: ObjectStorage {
         checksum: String?,
         timeout: TimeAmount
     ) async throws where T.Element == ByteBuffer {
-        fatalError("unimplemented")
+        let sourceUrl = basePath.appendingPathComponent(key)
+        FileManager.default.createFile(atPath: sourceUrl.path, contents: nil)
+        guard let handle = FileHandle(forWritingAtPath: sourceUrl.path) else {
+            throw ObjectStorageError.keyNotExists
+        }
+        let calculator = createChecksumCalculator()
+        for try await buffer in sequence {
+            handle.write(.init(buffer: buffer))
+            var buff = buffer
+            let bytes = buff.readBytes(length: buff.readableBytes) ?? []
+            calculator.update(bytes)
+        }
+        let dataChecksum = calculator.finalize()
+        if let inputchecksum = checksum, inputchecksum != dataChecksum {
+            throw ObjectStorageError.invalidChecksum
+        }
+        try handle.close()
     }
 
     func download(
@@ -124,10 +140,35 @@ extension LocalObjectStorage: ObjectStorage {
         chunkSize: UInt,
         timeout: TimeAmount
     ) -> AsyncThrowingStream<ByteBuffer, Error> {
-        fatalError("unimplemented")
-//        .init { c in
-//            c.finish()
-//        }
+        .init { c in
+            Task {
+                let sourceUrl = basePath.appendingPathComponent(key)
+                guard let handle = FileHandle(forReadingAtPath: sourceUrl.path) else {
+                    throw ObjectStorageError.keyNotExists
+                }
+                let attr = try FileManager.default.attributesOfItem(atPath: sourceUrl.path)
+                let fileSize = attr[FileAttributeKey.size] as! UInt64
+                let bufSize = UInt64(chunkSize)
+                var num = fileSize / bufSize
+                let rem = fileSize % bufSize
+                if rem > 0 {
+                    num += 1
+                }
+
+                for i in 0..<num {
+                    let data: Data
+                    try handle.seek(toOffset: bufSize * i)
+                    if i == num - 1 {
+                        data = handle.readData(ofLength: Int(rem))
+                    }
+                    else {
+                        data = handle.readData(ofLength: Int(bufSize))
+                    }
+                    c.yield(.init(data: data))
+                }
+                c.finish()
+            }
+        }
     }
 
     func create(
