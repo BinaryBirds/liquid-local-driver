@@ -21,7 +21,8 @@ final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
         try await os.upload(
             key: key,
             buffer: .init(bytes: [UInt8](data)),
-            checksum: nil
+            checksum: nil,
+            timeout: .seconds(30)
         )
     }
     
@@ -36,7 +37,8 @@ final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
         try await os.upload(
             key: key,
             buffer: .init(bytes: [UInt8](data)),
-            checksum: checksum
+            checksum: checksum,
+            timeout: .seconds(30)
         )
     }
     
@@ -49,7 +51,8 @@ final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
             try await os.upload(
                 key: key,
                 buffer: .init(bytes: [UInt8](data)),
-                checksum: "invalid"
+                checksum: "invalid",
+                timeout: .seconds(30)
             )
             XCTFail("Upload should not be allowed with invalid checksums.")
         }
@@ -78,7 +81,8 @@ final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
         try await os.upload(
             key: key2,
             buffer: .init(data: data),
-            checksum: nil
+            checksum: nil,
+            timeout: .seconds(30)
         )
 
         let res = try await os.list(key: "dir02")
@@ -102,10 +106,15 @@ final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
         try await os.upload(
             key: key2,
             buffer: .init(data: data),
-            checksum: nil
+            checksum: nil,
+            timeout: .seconds(30)
         )
 
-        let res = try await os.download(key: key2, range: nil)
+        let res = try await os.download(
+            key: key2,
+            range: nil,
+            timeout: .seconds(30)
+        )
         guard let resData = res.getData(at: 0, length: res.readableBytes) else {
             return XCTFail("Byte buffer should contain valid data.")
         }
@@ -118,10 +127,15 @@ final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
         try await os.upload(
             key: key2,
             buffer: .init(data: data),
-            checksum: nil
+            checksum: nil,
+            timeout: .seconds(30)
         )
 
-        let res = try await os.download(key: key2, range: 1...3)
+        let res = try await os.download(
+            key: key2,
+            range: 1...3,
+            timeout: .seconds(30)
+        )
         guard
             let resData = res.getData(at: 0, length: res.readableBytes),
             let res = String(data: resData, encoding: .utf8)
@@ -137,7 +151,8 @@ final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
         try await os.upload(
             key: key2,
             buffer: .init(data: data),
-            checksum: nil
+            checksum: nil,
+            timeout: .seconds(30)
         )
 
         let res = try await os.list(key: key2)
@@ -150,7 +165,8 @@ final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
         try await os.upload(
             key: key,
             buffer: .init(data: data),
-            checksum: nil
+            checksum: nil,
+            timeout: .seconds(30)
         )
         
         let dest = "test-03.txt"
@@ -169,7 +185,8 @@ final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
         try await os.upload(
             key: key,
             buffer: .init(data: data),
-            checksum: nil
+            checksum: nil,
+            timeout: .seconds(30)
         )
 
         let dest = "test-05.txt"
@@ -211,7 +228,8 @@ final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
             key: key,
             buffer: .init(data: data),
             uploadId: id,
-            partNumber: 1
+            partNumber: 1,
+            timeout: .seconds(30)
         )
         
         let res = await os.exists(
@@ -231,7 +249,8 @@ final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
             key: key,
             buffer: .init(data: data1),
             uploadId: id,
-            partNumber: 1
+            partNumber: 1,
+            timeout: .seconds(30)
         )
         
         let data2 = Data(" dolor sit amet".utf8)
@@ -239,7 +258,8 @@ final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
             key: key,
             buffer: .init(data: data2),
             uploadId: id,
-            partNumber: 2
+            partNumber: 2,
+            timeout: .seconds(30)
         )
         
         try await os.completeMultipartUpload(
@@ -249,10 +269,15 @@ final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
             chunks: [
                 chunk1,
                 chunk2,
-            ]
+            ],
+            timeout: .seconds(30)
         )
         
-        let file = try await os.download(key: key, range: nil)
+        let file = try await os.download(
+            key: key,
+            range: nil,
+            timeout: .seconds(30)
+        )
         
         guard
             let data = file.getData(at: 0, length: file.readableBytes),

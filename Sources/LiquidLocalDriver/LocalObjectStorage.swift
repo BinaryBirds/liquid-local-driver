@@ -58,7 +58,7 @@ private extension LocalObjectStorage {
 }
 
 extension LocalObjectStorage: ObjectStorage {
-    
+
     func createChecksumCalculator() -> ChecksumCalculator {
         CRC32()
     }
@@ -72,7 +72,8 @@ extension LocalObjectStorage: ObjectStorage {
     func upload(
         key: String,
         buffer: ByteBuffer,
-        checksum: String?
+        checksum: String?,
+        timeout: TimeAmount
     ) async throws {
         let fileUrl = basePath.appendingPathComponent(key)
         let location = fileUrl.deletingLastPathComponent()
@@ -107,6 +108,27 @@ extension LocalObjectStorage: ObjectStorage {
         }
         .get()
     }
+    
+    func upload<T: AsyncSequence & Sendable>(
+        sequence: T,
+        size: UInt,
+        key: String,
+        checksum: String?,
+        timeout: TimeAmount
+    ) async throws where T.Element == ByteBuffer {
+        fatalError("unimplemented")
+    }
+
+    func download(
+        key: String,
+        chunkSize: UInt,
+        timeout: TimeAmount
+    ) -> AsyncThrowingStream<ByteBuffer, Error> {
+        fatalError("unimplemented")
+//        .init { c in
+//            c.finish()
+//        }
+    }
 
     func create(
         key: String
@@ -117,7 +139,8 @@ extension LocalObjectStorage: ObjectStorage {
 
     func download(
         key: String,
-        range: ClosedRange<UInt>?
+        range: ClosedRange<UInt>?,
+        timeout: TimeAmount
     ) async throws -> ByteBuffer {
         let sourceUrl = basePath.appendingPathComponent(key)
         let data = try Data(contentsOf: sourceUrl)
@@ -203,12 +226,18 @@ extension LocalObjectStorage: ObjectStorage {
         key: String,
         buffer: ByteBuffer,
         uploadId: MultipartUpload.ID,
-        partNumber: Int
+        partNumber: Int,
+        timeout: TimeAmount
     ) async throws -> MultipartUpload.Chunk {
         let multipartDirKey = key + "+multipart/" + uploadId.value
         let fileId = UUID().uuidString
         let fileKey = multipartDirKey + "/" + fileId + "-" + String(partNumber)
-        try await upload(key: fileKey, buffer: buffer, checksum: nil)
+        try await upload(
+            key: fileKey,
+            buffer: buffer,
+            checksum: nil,
+            timeout: timeout
+        )
         return .init(id: fileId, number: partNumber)
     }
     
@@ -224,7 +253,8 @@ extension LocalObjectStorage: ObjectStorage {
         key: String,
         uploadId: MultipartUpload.ID,
         checksum: String?,
-        chunks: [MultipartUpload.Chunk]
+        chunks: [MultipartUpload.Chunk],
+        timeout: TimeAmount
     ) async throws {
         let multipartBaseKey = key + "+multipart/"
         let multipartDirKey = multipartBaseKey + uploadId.value
@@ -234,7 +264,11 @@ extension LocalObjectStorage: ObjectStorage {
             let chunkKey = multipartDirKey + "/" + chunk.id + "-" + String(chunk.number)
 
             // TODO: needs better solution
-            let buffer = try await download(key: chunkKey, range: nil)
+            let buffer = try await download(
+                key: chunkKey,
+                range: nil,
+                timeout: timeout
+            )
             guard let chunkData = buffer.getData(at: 0, length: buffer.readableBytes) else {
                 throw ObjectStorageError.keyNotExists
             }
@@ -244,7 +278,8 @@ extension LocalObjectStorage: ObjectStorage {
         try await upload(
             key: key,
             buffer: .init(data: data),
-            checksum: checksum
+            checksum: checksum,
+            timeout: timeout
         )
         try await delete(key: multipartBaseKey)
     }
