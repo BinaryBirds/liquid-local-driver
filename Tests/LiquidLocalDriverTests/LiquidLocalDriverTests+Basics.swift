@@ -1,3 +1,10 @@
+//
+//  LiquidLocalDriverTests+Basics.swift
+//  LiquidLocalDriverTests
+//
+//  Created by Tibor Bodecs on 2023. 02. 07..
+//
+
 import XCTest
 import NIO
 import NIOFoundationCompat
@@ -5,74 +12,13 @@ import Logging
 import LiquidKit
 @testable import LiquidLocalDriver
 
-final class LiquidLocalDriverTests: XCTestCase {
-
-    private static let workDir = "tmp"
-    
-    private static func getBasePath() -> String {
-        "/" + #file
-            .split(separator: "/")
-            .dropLast()
-            .joined(separator: "/")
-    }
-    
-    private static func getWorkPath() -> String {
-        getBasePath() + "/" + workDir
-    }
-    
-    private func createTestDriver(
-        path: String,
-        dir: String
-    ) -> LocalObjectStorage {
-        let logger = Logger(label: "test-logger")
-        let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
-        let pool = NIOThreadPool(numberOfThreads: 1)
-        let fileio = NonBlockingFileIO(threadPool: pool)
-        pool.start()
-
-        let objectStorages = ObjectStorages(
-            eventLoopGroup: eventLoopGroup,
-            byteBufferAllocator: .init(),
-            fileio: fileio
-        )
-
-        objectStorages.use(
-            .local(
-                publicUrl: "http://localhost/",
-                publicPath: path,
-                workDirectory: dir
-            ),
-            as: .local
-        )
-
-        return objectStorages.make(
-            logger: logger,
-            on: eventLoopGroup.next()
-        )! as! LocalObjectStorage
-    }
-
-    
-    var tmpPath: String!
-    var fs: LocalObjectStorage!
-
-    override func setUp() {
-        let workDir = UUID().uuidString
-        tmpPath = Self.getWorkPath() + "/" + workDir
-        
-        fs = createTestDriver(path: tmpPath, dir: workDir)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(atPath: tmpPath)
-    }
-
-    // MARK: - tests
+final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
 
     func testUpload() async throws {
 
         let key = "test-01.txt"
         let data = Data("file storage test 01".utf8)
-        try await fs.upload(
+        try await os.upload(
             key: key,
             buffer: .init(bytes: [UInt8](data)),
             checksum: nil
@@ -80,15 +26,14 @@ final class LiquidLocalDriverTests: XCTestCase {
     }
     
     func testUploadValidChecksum() async throws {
-        
         let key = "test-01.txt"
         let data = Data("file storage test 01".utf8)
         
-        let calculator = fs.createChecksumCalculator()
+        let calculator = os.createChecksumCalculator()
         calculator.update(.init(data))
         let checksum = calculator.finalize()
         
-        try await fs.upload(
+        try await os.upload(
             key: key,
             buffer: .init(bytes: [UInt8](data)),
             checksum: checksum
@@ -101,7 +46,7 @@ final class LiquidLocalDriverTests: XCTestCase {
         let data = Data("file storage test 01".utf8)
         
         do {
-            try await fs.upload(
+            try await os.upload(
                 key: key,
                 buffer: .init(bytes: [UInt8](data)),
                 checksum: "invalid"
@@ -115,52 +60,52 @@ final class LiquidLocalDriverTests: XCTestCase {
 
     func testCreate() async throws {
         let key = "dir01/dir02/dir03"
-        try await fs.create(key: key)
+        try await os.create(key: key)
         
-        let keys1 = try await fs.list(key: "dir01")
+        let keys1 = try await os.list(key: "dir01")
         XCTAssertEqual(keys1, ["dir02"])
         
-        let keys2 = try await fs.list(key: "dir01/dir02")
+        let keys2 = try await os.list(key: "dir01/dir02")
         XCTAssertEqual(keys2, ["dir03"])
     }
 
     func testList() async throws {
         let key1 = "dir02/dir03"
-        try await fs.create(key: key1)
+        try await os.create(key: key1)
 
         let key2 = "dir02/test-01.txt"
         let data = Data("test".utf8)
-        try await fs.upload(
+        try await os.upload(
             key: key2,
             buffer: .init(data: data),
             checksum: nil
         )
 
-        let res = try await fs.list(key: "dir02")
+        let res = try await os.list(key: "dir02")
         XCTAssertEqual(res, ["dir03", "test-01.txt"])
     }
 
     func testExists() async throws {
         let key1 = "non-existing-thing"
-        let exists1 = await fs.exists(key: key1)
+        let exists1 = await os.exists(key: key1)
         XCTAssertFalse(exists1)
 
         let key2 = "my/dir"
-        try await fs.create(key: key2)
-        let exists2 = await fs.exists(key: key2)
+        try await os.create(key: key2)
+        let exists2 = await os.exists(key: key2)
         XCTAssertTrue(exists2)
     }
 
     func testDownload() async throws {
         let key2 = "dir04/test-01.txt"
         let data = Data("test".utf8)
-        try await fs.upload(
+        try await os.upload(
             key: key2,
             buffer: .init(data: data),
             checksum: nil
         )
 
-        let res = try await fs.download(key: key2, range: nil)
+        let res = try await os.download(key: key2, range: nil)
         guard let resData = res.getData(at: 0, length: res.readableBytes) else {
             return XCTFail("Byte buffer should contain valid data.")
         }
@@ -170,13 +115,13 @@ final class LiquidLocalDriverTests: XCTestCase {
     func testDownloadRange() async throws {
         let key2 = "dir04/test-01.txt"
         let data = Data("test".utf8)
-        try await fs.upload(
+        try await os.upload(
             key: key2,
             buffer: .init(data: data),
             checksum: nil
         )
 
-        let res = try await fs.download(key: key2, range: 1...3)
+        let res = try await os.download(key: key2, range: 1...3)
         guard
             let resData = res.getData(at: 0, length: res.readableBytes),
             let res = String(data: resData, encoding: .utf8)
@@ -189,70 +134,70 @@ final class LiquidLocalDriverTests: XCTestCase {
     func testListFile() async throws {
         let key2 = "dir04/test-01.txt"
         let data = Data("test".utf8)
-        try await fs.upload(
+        try await os.upload(
             key: key2,
             buffer: .init(data: data),
             checksum: nil
         )
 
-        let res = try await fs.list(key: key2)
+        let res = try await os.list(key: key2)
         XCTAssertEqual(res, [])
     }
 
     func testCopy() async throws {
         let key = "test-02.txt"
         let data = Data("file storage test 02".utf8)
-        try await fs.upload(
+        try await os.upload(
             key: key,
             buffer: .init(data: data),
             checksum: nil
         )
         
         let dest = "test-03.txt"
-        try await fs.copy(key: key, to: dest)
+        try await os.copy(key: key, to: dest)
 
-        let res3 = await fs.exists(key: key)
+        let res3 = await os.exists(key: key)
         XCTAssertTrue(res3)
 
-        let res4 = await fs.exists(key: dest)
+        let res4 = await os.exists(key: dest)
         XCTAssertTrue(res4)
     }
 
     func testMove() async throws {
         let key = "test-04.txt"
         let data = Data("file storage test 04".utf8)
-        try await fs.upload(
+        try await os.upload(
             key: key,
             buffer: .init(data: data),
             checksum: nil
         )
 
         let dest = "test-05.txt"
-        try await fs.move(key: key, to: dest)
+        try await os.move(key: key, to: dest)
 
-        let res3 = await fs.exists(key: key)
+        let res3 = await os.exists(key: key)
         XCTAssertFalse(res3)
 
-        let res4 = await fs.exists(key: dest)
+        let res4 = await os.exists(key: dest)
         XCTAssertTrue(res4)
     }
     
     func testMultipartUploadCreate() async throws {
         let key = "test-04.txt"
-        let id = try await fs.createMultipartUpload(key: key)
+        let id = try await os.createMultipartUpload(key: key)
 
-        let res = await fs.exists(key: key + "+multipart/" + id.value)
+        let res = await os.exists(key: key + "+multipart/" + id.value)
         XCTAssertTrue(res)
     }
     
     func testMultipartUploadCancel() async throws {
 
         let key = "test-04.txt"
-        let id = try await fs.createMultipartUpload(key: key)
+        let id = try await os.createMultipartUpload(key: key)
         
-        try await fs.cancelMultipartUpload(key: key, uploadId: id)
+        try await os.cancelMultipartUpload(key: key, uploadId: id)
 
-        let res = await fs.exists(key: key + "+multipart/" + id.value)
+        let res = await os.exists(key: key + "+multipart/" + id.value)
         XCTAssertFalse(res)
     }
 
@@ -260,16 +205,16 @@ final class LiquidLocalDriverTests: XCTestCase {
         let key = "test-04.txt"
         let data = Data("file storage test 04".utf8)
         
-        let id = try await fs.createMultipartUpload(key: key)
+        let id = try await os.createMultipartUpload(key: key)
         
-        let chunk = try await fs.uploadMultipartChunk(
+        let chunk = try await os.uploadMultipartChunk(
             key: key,
             buffer: .init(data: data),
             uploadId: id,
             partNumber: 1
         )
         
-        let res = await fs.exists(
+        let res = await os.exists(
             key: key + "+multipart/" + id.value + "/" + chunk.id + "-" + String(chunk.number)
         )
         XCTAssertTrue(res)
@@ -279,10 +224,10 @@ final class LiquidLocalDriverTests: XCTestCase {
 
         let key = "test-04.txt"
 
-        let id = try await fs.createMultipartUpload(key: key)
+        let id = try await os.createMultipartUpload(key: key)
         
         let data1 = Data("lorem ipsum".utf8)
-        let chunk1 = try await fs.uploadMultipartChunk(
+        let chunk1 = try await os.uploadMultipartChunk(
             key: key,
             buffer: .init(data: data1),
             uploadId: id,
@@ -290,14 +235,14 @@ final class LiquidLocalDriverTests: XCTestCase {
         )
         
         let data2 = Data(" dolor sit amet".utf8)
-        let chunk2 = try await fs.uploadMultipartChunk(
+        let chunk2 = try await os.uploadMultipartChunk(
             key: key,
             buffer: .init(data: data2),
             uploadId: id,
             partNumber: 2
         )
         
-        try await fs.completeMultipartUpload(
+        try await os.completeMultipartUpload(
             key: key,
             uploadId: id,
             checksum: nil,
@@ -307,7 +252,7 @@ final class LiquidLocalDriverTests: XCTestCase {
             ]
         )
         
-        let file = try await fs.download(key: key, range: nil)
+        let file = try await os.download(key: key, range: nil)
         
         guard
             let data = file.getData(at: 0, length: file.readableBytes),
