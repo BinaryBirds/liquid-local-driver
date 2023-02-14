@@ -35,7 +35,7 @@ open class LiquidLocalDriverTestCase: XCTestCase {
     }
     
     func getAssetsPath() -> String {
-        getBasePath() + "/Assets/"
+        return getBasePath() + "/Assets/"
     }
     
     private func createTestObjectStorages(
@@ -61,8 +61,8 @@ open class LiquidLocalDriverTestCase: XCTestCase {
         storages.use(
             .local(
                 publicUrl: "http://localhost/",
-                publicPath: "public",
-                workDirectory: workPath
+                publicPath: workPath,
+                workDirectory: workDir
             ),
             as: .local
         )
@@ -74,14 +74,16 @@ open class LiquidLocalDriverTestCase: XCTestCase {
     }
     
     var workPath: String!
+    var workDir: String!
     var storages: ObjectStorages!
     var os: LocalObjectStorage!
 
     open override func setUp() {
-        workPath = getBasePath() + "/tmp/" + UUID().uuidString + "/"
+        workPath = getBasePath() + "/tmp/"
+        workDir = UUID().uuidString
         
         try? FileManager.default.createDirectory(
-            at: URL(fileURLWithPath: workPath),
+            at: URL(fileURLWithPath: workPath + workDir),
             withIntermediateDirectories: true
         )
 
@@ -93,7 +95,7 @@ open class LiquidLocalDriverTestCase: XCTestCase {
     }
 
     open override func tearDown() {
-        try? FileManager.default.removeItem(atPath: workPath)
+        try? FileManager.default.removeItem(atPath: workPath + workDir)
 
         storages.shutdown()
         

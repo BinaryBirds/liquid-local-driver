@@ -68,6 +68,65 @@ extension LocalObjectStorage: ObjectStorage {
     ) -> String {
         baseUrl.appendingPathComponent(key).absoluteString
     }
+    
+    func download(
+        key: String,
+        range: ClosedRange<UInt>?,
+        timeout: TimeAmount
+    ) async throws -> ByteBuffer {
+        let sourceUrl = basePath.appendingPathComponent(key)
+        let data = try Data(contentsOf: sourceUrl)
+
+        if let range, range.upperBound < data.count {
+            return .init(
+                data: data.subdata(
+                    in: .init(
+                        uncheckedBounds: (
+                            Int(range.lowerBound),
+                            Int(range.upperBound)
+                        )
+                    )
+                )
+            )
+        }
+        return .init(data: data)
+    }
+    
+    func download(
+        key: String,
+        chunkSize: UInt,
+        timeout: TimeAmount
+    ) -> AsyncThrowingStream<ByteBuffer, Error> {
+        .init { c in
+            Task {
+                let sourceUrl = basePath.appendingPathComponent(key)
+                guard let handle = FileHandle(forReadingAtPath: sourceUrl.path) else {
+                    throw ObjectStorageError.keyNotExists
+                }
+                let attr = try FileManager.default.attributesOfItem(atPath: sourceUrl.path)
+                let fileSize = attr[FileAttributeKey.size] as! UInt64
+                let bufSize = UInt64(chunkSize)
+                var num = fileSize / bufSize
+                let rem = fileSize % bufSize
+                if rem > 0 {
+                    num += 1
+                }
+
+                for i in 0..<num {
+                    let data: Data
+                    try handle.seek(toOffset: bufSize * i)
+                    if i == num - 1 {
+                        data = handle.readData(ofLength: Int(rem))
+                    }
+                    else {
+                        data = handle.readData(ofLength: Int(bufSize))
+                    }
+                    c.yield(.init(data: data))
+                }
+                c.finish()
+            }
+        }
+    }
 
     func upload(
         key: String,
@@ -135,42 +194,6 @@ extension LocalObjectStorage: ObjectStorage {
         try handle.close()
     }
 
-    func download(
-        key: String,
-        chunkSize: UInt,
-        timeout: TimeAmount
-    ) -> AsyncThrowingStream<ByteBuffer, Error> {
-        .init { c in
-            Task {
-                let sourceUrl = basePath.appendingPathComponent(key)
-                guard let handle = FileHandle(forReadingAtPath: sourceUrl.path) else {
-                    throw ObjectStorageError.keyNotExists
-                }
-                let attr = try FileManager.default.attributesOfItem(atPath: sourceUrl.path)
-                let fileSize = attr[FileAttributeKey.size] as! UInt64
-                let bufSize = UInt64(chunkSize)
-                var num = fileSize / bufSize
-                let rem = fileSize % bufSize
-                if rem > 0 {
-                    num += 1
-                }
-
-                for i in 0..<num {
-                    let data: Data
-                    try handle.seek(toOffset: bufSize * i)
-                    if i == num - 1 {
-                        data = handle.readData(ofLength: Int(rem))
-                    }
-                    else {
-                        data = handle.readData(ofLength: Int(bufSize))
-                    }
-                    c.yield(.init(data: data))
-                }
-                c.finish()
-            }
-        }
-    }
-
     func create(
         key: String
     ) async throws {
@@ -178,28 +201,6 @@ extension LocalObjectStorage: ObjectStorage {
         try createDir(at: dirUrl)
     }
 
-    func download(
-        key: String,
-        range: ClosedRange<UInt>?,
-        timeout: TimeAmount
-    ) async throws -> ByteBuffer {
-        let sourceUrl = basePath.appendingPathComponent(key)
-        let data = try Data(contentsOf: sourceUrl)
-
-        if let range, range.upperBound < data.count {
-            return .init(
-                data: data.subdata(
-                    in: .init(
-                        uncheckedBounds: (
-                            Int(range.lowerBound),
-                            Int(range.upperBound)
-                        )
-                    )
-                )
-            )
-        }
-        return .init(data: data)
-    }
 
     func list(
         key: String?
@@ -279,6 +280,37 @@ extension LocalObjectStorage: ObjectStorage {
             checksum: nil,
             timeout: timeout
         )
+        return .init(id: fileId, number: partNumber)
+    }
+    
+    func uploadMultipartChunk<T: AsyncSequence & Sendable>(
+        key: String,
+        sequence: T,
+        size: UInt,
+        uploadId: MultipartUpload.ID,
+        partNumber: Int,
+        timeout: TimeAmount
+    ) async throws -> MultipartUpload.Chunk where T.Element == ByteBuffer {
+        let multipartDirKey = key + "+multipart/" + uploadId.value
+        let fileId = UUID().uuidString
+        let fileKey = multipartDirKey + "/" + fileId + "-" + String(partNumber)
+
+        
+        let sourceUrl = basePath.appendingPathComponent(fileKey)
+        
+        print(basePath.path)
+        
+        FileManager.default.createFile(atPath: sourceUrl.path, contents: nil)
+        guard let handle = FileHandle(forWritingAtPath: sourceUrl.path) else {
+            throw ObjectStorageError.keyNotExists
+        }
+
+        for try await buffer in sequence {
+            handle.write(.init(buffer: buffer))
+        }
+
+        try handle.close()
+
         return .init(id: fileId, number: partNumber)
     }
     
