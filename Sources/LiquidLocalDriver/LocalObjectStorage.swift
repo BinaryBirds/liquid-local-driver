@@ -295,10 +295,7 @@ extension LocalObjectStorage: ObjectStorage {
         let fileId = UUID().uuidString
         let fileKey = multipartDirKey + "/" + fileId + "-" + String(partNumber)
 
-        
         let sourceUrl = basePath.appendingPathComponent(fileKey)
-        
-        print(basePath.path)
         
         FileManager.default.createFile(atPath: sourceUrl.path, contents: nil)
         guard let handle = FileHandle(forWritingAtPath: sourceUrl.path) else {
@@ -308,7 +305,6 @@ extension LocalObjectStorage: ObjectStorage {
         for try await buffer in sequence {
             handle.write(.init(buffer: buffer))
         }
-
         try handle.close()
 
         return .init(id: fileId, number: partNumber)
@@ -332,28 +328,27 @@ extension LocalObjectStorage: ObjectStorage {
         let multipartBaseKey = key + "+multipart/"
         let multipartDirKey = multipartBaseKey + uploadId.value
 
-        var data = Data()
+        let outputUrl = basePath.appendingPathComponent(key)
+        FileManager.default.createFile(atPath: outputUrl.path, contents: nil)
+        guard let writeHandle = FileHandle(forWritingAtPath: outputUrl.path) else {
+            throw ObjectStorageError.keyNotExists
+        }
+        // TODO: validate checksum...
         for chunk in chunks {
             let chunkKey = multipartDirKey + "/" + chunk.id + "-" + String(chunk.number)
+            let chunkUrl = basePath.appendingPathComponent(chunkKey)
 
-            // TODO: needs better solution
-            let buffer = try await download(
-                key: chunkKey,
-                range: nil,
-                timeout: timeout
-            )
-            guard let chunkData = buffer.getData(at: 0, length: buffer.readableBytes) else {
+            guard let readHandle = FileHandle(forReadingAtPath: chunkUrl.path) else {
                 throw ObjectStorageError.keyNotExists
             }
-            data.append(chunkData)
+            let attr = try FileManager.default.attributesOfItem(atPath: chunkUrl.path)
+            let fileSize = attr[FileAttributeKey.size] as! UInt64
+            let data = readHandle.readData(ofLength: Int(fileSize))
+            writeHandle.write(data)
+            try readHandle.close()
         }
-        
-        try await upload(
-            key: key,
-            buffer: .init(data: data),
-            checksum: checksum,
-            timeout: timeout
-        )
+        try writeHandle.close()
+
         try await delete(key: multipartBaseKey)
     }
 }
