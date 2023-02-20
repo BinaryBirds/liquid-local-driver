@@ -289,6 +289,54 @@ final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
         XCTAssertEqual(value, "lorem ipsum dolor sit amet")
     }
     
+    func testMultipartUploadInvalidChecksum() async throws {
+
+        let key = "test-04.txt"
+
+        let id = try await os.createMultipartUpload(key: key)
+        
+        let calculator = os.createChecksumCalculator()
+        
+        let data1 = Data("lorem ipsum".utf8)
+        calculator.update([UInt8](data1))
+
+        let chunk1 = try await os.uploadMultipartChunk(
+            key: key,
+            buffer: .init(data: data1),
+            uploadId: id,
+            partNumber: 1,
+            timeout: .seconds(30)
+        )
+        
+        let data2 = Data(" dolor sit amet".utf8)
+        calculator.update([UInt8](data2))
+        
+        let chunk2 = try await os.uploadMultipartChunk(
+            key: key,
+            buffer: .init(data: data2),
+            uploadId: id,
+            partNumber: 2,
+            timeout: .seconds(30)
+        )
+        
+        do {
+            try await os.completeMultipartUpload(
+                key: key,
+                uploadId: id,
+                checksum: calculator.finalize() + "-invalid",
+                chunks: [
+                    chunk1,
+                    chunk2,
+                ],
+                timeout: .seconds(30)
+            )
+            XCTFail("Should fail with invalid checksum error")
+        }
+        catch ObjectStorageError.invalidChecksum {
+            // ok
+        }
+    }
+    
     func testLargeMultipartUploadStream() async throws {
         let key = "test.avi"
         let filePath = getAssetsPath() + key
@@ -347,4 +395,5 @@ final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
             timeout: .seconds(30)
         )
     }
+
 }

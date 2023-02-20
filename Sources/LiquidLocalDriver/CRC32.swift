@@ -1,5 +1,5 @@
 //
-// @TODO: completely eliminate Foundation
+// NOTE: remove Foundation as a dependency? 🤔
 // https://github.com/apple/swift-nio/blob/main/Sources/NIOWebSocket/Base64.swift
 //
 import struct Foundation.Data

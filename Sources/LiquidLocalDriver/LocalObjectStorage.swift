@@ -138,7 +138,6 @@ extension LocalObjectStorage: ObjectStorage {
         let location = fileUrl.deletingLastPathComponent()
         try createDir(at: location)
         
-        // TODO: needs better solution
         let calculator = createChecksumCalculator()
         if let data = buffer.getData(at: 0, length: buffer.readableBytes) {
             calculator.update(.init(data))
@@ -333,7 +332,11 @@ extension LocalObjectStorage: ObjectStorage {
         guard let writeHandle = FileHandle(forWritingAtPath: outputUrl.path) else {
             throw ObjectStorageError.keyNotExists
         }
-        // TODO: validate checksum...
+
+        var calculator: ChecksumCalculator?
+        if checksum != nil {
+            calculator = createChecksumCalculator()
+        }
         for chunk in chunks {
             let chunkKey = multipartDirKey + "/" + chunk.id + "-" + String(chunk.number)
             let chunkUrl = basePath.appendingPathComponent(chunkKey)
@@ -346,8 +349,14 @@ extension LocalObjectStorage: ObjectStorage {
             let data = readHandle.readData(ofLength: Int(fileSize))
             writeHandle.write(data)
             try readHandle.close()
+
+            calculator?.update([UInt8](data))
         }
         try writeHandle.close()
+        
+        if let checksum, let calculator, checksum != calculator.finalize() {
+            throw ObjectStorageError.invalidChecksum
+        }
 
         try await delete(key: multipartBaseKey)
     }
