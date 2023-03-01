@@ -137,15 +137,15 @@ extension LocalObjectStorage: ObjectStorage {
         let fileUrl = basePath.appendingPathComponent(key)
         let location = fileUrl.deletingLastPathComponent()
         try createDir(at: location)
-        
-        let calculator = createChecksumCalculator()
-        if let data = buffer.getData(at: 0, length: buffer.readableBytes) {
-            calculator.update(.init(data))
-        }
-        let dataChecksum = calculator.finalize()
-        
-        if let inputchecksum = checksum, inputchecksum != dataChecksum {
-            throw ObjectStorageError.invalidChecksum
+
+        if let checksum {
+            let calculator = createChecksumCalculator()
+            if let data = buffer.getData(at: 0, length: buffer.readableBytes) {
+                calculator.update(.init(data))
+            }
+            if checksum != calculator.finalize() {
+                throw ObjectStorageError.invalidChecksum
+            }
         }
 
         return try await fileio.openFile(
@@ -179,17 +179,22 @@ extension LocalObjectStorage: ObjectStorage {
         guard let handle = FileHandle(forWritingAtPath: sourceUrl.path) else {
             throw ObjectStorageError.keyNotExists
         }
-        let calculator = createChecksumCalculator()
+
+        var calculator: ChecksumCalculator?
+        if checksum != nil {
+            calculator = createChecksumCalculator()
+        }
         for try await buffer in sequence {
             handle.write(.init(buffer: buffer))
             var buff = buffer
             let bytes = buff.readBytes(length: buff.readableBytes) ?? []
-            calculator.update(bytes)
+            calculator?.update(bytes)
         }
-        let dataChecksum = calculator.finalize()
-        if let inputchecksum = checksum, inputchecksum != dataChecksum {
+
+        if let checksum, let calculator, checksum != calculator.finalize() {
             throw ObjectStorageError.invalidChecksum
         }
+        
         try handle.close()
     }
 
