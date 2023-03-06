@@ -75,21 +75,18 @@ extension LocalObjectStorage: ObjectStorage {
         timeout: TimeAmount
     ) async throws -> ByteBuffer {
         let sourceUrl = basePath.appendingPathComponent(key)
-        let data = try Data(contentsOf: sourceUrl)
-
-        if let range, range.upperBound < data.count {
-            return .init(
-                data: data.subdata(
-                    in: .init(
-                        uncheckedBounds: (
-                            Int(range.lowerBound),
-                            Int(range.upperBound)
-                        )
-                    )
-                )
-            )
+        guard let handle = FileHandle(forReadingAtPath: sourceUrl.path) else {
+            throw ObjectStorageError.keyNotExists
         }
-        return .init(data: data)
+        let attr = try FileManager.default.attributesOfItem(atPath: sourceUrl.path)
+        let fileSize = attr[FileAttributeKey.size] as! UInt64
+        
+        guard let range, range.upperBound <= fileSize else {
+            return .init(data: handle.readData(ofLength: Int(fileSize)))
+        }
+        let size = Int(range.upperBound - range.lowerBound)
+        try handle.seek(toOffset: UInt64(range.lowerBound))
+        return .init(data: handle.readData(ofLength: size))
     }
     
     func download(

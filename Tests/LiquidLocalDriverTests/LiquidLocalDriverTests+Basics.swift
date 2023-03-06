@@ -144,6 +144,44 @@ final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
         }
         XCTAssertEqual(res, "es")
     }
+    
+    func testDownloadRanges() async throws {
+        let key2 = "dir04/test-01.txt"
+        let data = Data("test".utf8)
+        try await os.upload(
+            key: key2,
+            buffer: .init(data: data),
+            checksum: nil,
+            timeout: .seconds(30)
+        )
+
+        let res1 = try await os.download(
+            key: key2,
+            range: 0...2,
+            timeout: .seconds(30)
+        )
+        guard
+            let resData = res1.getData(at: 0, length: res1.readableBytes),
+            let res1 = String(data: resData, encoding: .utf8)
+        else {
+            return XCTFail("Byte buffer should contain valid data.")
+        }
+        XCTAssertEqual(res1, "te")
+
+        let res2 = try await os.download(
+            key: key2,
+            range: 2...4,
+            timeout: .seconds(30)
+        )
+        guard
+            let resData = res2.getData(at: 0, length: res2.readableBytes),
+            let res2 = String(data: resData, encoding: .utf8)
+        else {
+            return XCTFail("Byte buffer should contain valid data.")
+        }
+        
+        XCTAssertEqual(res2, "st")
+    }
 
     func testListFile() async throws {
         let key2 = "dir04/test-01.txt"
