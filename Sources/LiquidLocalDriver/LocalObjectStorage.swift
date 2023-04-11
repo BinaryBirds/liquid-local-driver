@@ -62,6 +62,14 @@ extension LocalObjectStorage: ObjectStorage {
     func createChecksumCalculator() -> ChecksumCalculator {
         CRC32()
     }
+    
+    func getAvailableSpace() -> UInt64 {
+        let attributes = try? FileManager.default.attributesOfFileSystem(
+            forPath: NSHomeDirectory() as String
+        )
+        let freeSpace = (attributes?[.systemFreeSize] as? NSNumber)?.int64Value
+        return UInt64(freeSpace ?? 0)
+    }
 
     func resolve(
         key: String

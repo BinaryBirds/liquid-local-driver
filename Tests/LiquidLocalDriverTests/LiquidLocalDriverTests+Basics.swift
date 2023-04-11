@@ -14,6 +14,10 @@ import LiquidKit
 
 final class LiquidLocalDriverTests_Basics: LiquidLocalDriverTestCase {
 
+    func testFreeSpace() {
+        XCTAssertGreaterThan(os.getAvailableSpace(), 0)
+    }
+    
     func testUpload() async throws {
 
         let key = "test-01.txt"
